@@ -1,17 +1,6 @@
 
-# LoopClosure_for_Gaussian_Splatting_SLAM
+<h1 align="center">LoopClosure_for_Gaussian_Splatting_SLAM
 
-<p align="center">
-
-  <h1 align="center">Gaussian-SLAM: Photo-realistic Dense SLAM with Gaussian Splatting</h1>
-  <p align="center">
-    <a href="https://vladimiryugay.github.io/"><strong>Vladimir Yugay</strong></a>
-    ·
-    <a href="https://unique1i.github.io/"><strong>Yue Li</strong></a>
-    ·
-    <a href="https://staff.fnwi.uva.nl/th.gevers/"><strong>Theo Gevers</strong></a>
-    ·
-    <a href="https://people.inf.ethz.ch/moswald/"><strong>Martin Oswald</strong></a>
   </p>
   <h3 align="center"><a href="https://vladimiryugay.github.io/gaussian_slam/index.html">Project Page</a></h3>
   <div align="center"></div>
