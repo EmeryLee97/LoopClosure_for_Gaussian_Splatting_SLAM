@@ -1,9 +1,6 @@
-<<<<<<< HEAD
+
 # LoopClosure_for_Gaussian_Splatting_SLAM
-=======
-<<<<<<< HEAD
-# Loop-Closure-for-Gaussian-Splatting-SLAM
-=======
+
 <p align="center">
 
   <h1 align="center">Gaussian-SLAM: Photo-realistic Dense SLAM with Gaussian Splatting</h1>
