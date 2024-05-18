@@ -207,3 +207,33 @@ def batch_search_faiss(indexer, query_points, k):
     ids = torch.cat(ids_list, dim=0)
 
     return distances, ids
+
+
+def to_skew_symmetric(tensor: torch.Tensor):
+    """
+    Transform a (3, ) tensor to a (3, 3) tensor, or
+    Transform a (n, 3) tensor to a (n, 3, 3) tensor, where n is the batch size
+
+    Args:
+        tensor (torch.Tensor): 3-vector(s) that need(s) to be transformed to skew symmetric matrix
+
+    Returns:
+        skew_symmetric (torch.Tensor): transformed skew symmetric matrices
+    """
+    if not isinstance(tensor, torch.Tensor):
+        raise TypeError("Input must be a torch.Tensor")
+    
+    size = tensor.size()
+    if len(size) > 2 or size[-1] != 3:
+        raise ValueError("Incorrect tensor dimension!")
+    
+    skew_symmetric = torch.zeros(tensor.size()+(3, ), dtype=tensor.dtype, device=tensor.device)
+
+    skew_symmetric[..., 0, 1] = -tensor[..., 2]
+    skew_symmetric[..., 0, 2] = tensor[..., 1]
+    skew_symmetric[..., 1, 0] = tensor[..., 2]
+    skew_symmetric[..., 1, 2] = -tensor[..., 0]
+    skew_symmetric[..., 2, 0] = -tensor[..., 1]
+    skew_symmetric[..., 2, 1] = tensor[..., 0]
+
+    return skew_symmetric
