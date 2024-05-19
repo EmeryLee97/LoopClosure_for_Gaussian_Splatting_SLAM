@@ -73,18 +73,19 @@ def dense_surface_alignment(
         axis_angle: torch.Tensor = torch.Tensor(axis_angle_rotation)
         trans: torch.Tensor = pose_mat[:3, 3]
 
-        xi = torch.cat((axis_angle, trans), dim=1)
+        xi = torch.cat((axis_angle, trans))
+        print(xi)
 
         p_skew_symmetric = to_skew_symmetric(gaussian_means) # (n, 3， 3) tensor
         G_p = torch.cat((-p_skew_symmetric, torch.eye(3).unsqueeze(0).expand(gaussian_means.size()[0], -1, -1)), dim=-1) # (n, 3, 6) tensor
-        # G_p_square = G_p.transpose(1, 2) @ G_p # (n, 6, 6) tensor
-        # Lambda = torch.sum(G_p_square, dum=0) # (6, 6) tensor
-        # res = xi.transpose @ Lambda @ xi
+        G_p_square = G_p.transpose(1, 2) @ G_p # (n, 6, 6) tensor
+        Lambda = torch.sum(G_p_square, dim=0) # (6, 6) tensor
+        res = xi @ Lambda @ xi
 
         if tuple_size == 3:
-            return l_ij.sqrt() * G_p  @ xi
+            return l_ij.sqrt() * res.sqrt() * np.sqrt(2)
         else:
-            return G_p @ xi
+            return res.sqrt() * np.sqrt(2)
 
 
 def line_process(
@@ -158,7 +159,7 @@ class AdjacentVerticeCost(th.CostFunction):
                        (batch_size, cf.dim(), i-th_optim_var.dof())
             error: self.error()
         """
-        return jacobians, error
+        pass
 
     def dim(self) -> int:
         return self._vertex_i.dof
@@ -169,7 +170,7 @@ class AdjacentVerticeCost(th.CostFunction):
             )
 
 
-class LoopClosureVerticeCost(th.CostFuntion):
+class LoopClosureVerticeCost(th.CostFunction):
     def __init__():
         pass
 
