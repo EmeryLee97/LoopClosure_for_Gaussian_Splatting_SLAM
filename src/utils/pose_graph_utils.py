@@ -74,13 +74,16 @@ def dense_surface_alignment(
         trans: torch.Tensor = pose_mat[:3, 3]
 
         xi = torch.cat((axis_angle, trans))
-        print(xi)
 
         p_skew_symmetric = to_skew_symmetric(gaussian_means) # (n, 3， 3) tensor
         G_p = torch.cat((-p_skew_symmetric, torch.eye(3).unsqueeze(0).expand(gaussian_means.size()[0], -1, -1)), dim=-1) # (n, 3, 6) tensor
-        G_p_square = G_p.transpose(1, 2) @ G_p # (n, 6, 6) tensor
+        print(f"G_p = {G_p}")
+        G_p_square = torch.matmul(G_p.transpose(1, 2), G_p) # (n, 6, 6) tensor
+        print(f"G_p_square: {G_p_square}")
         Lambda = torch.sum(G_p_square, dim=0) # (6, 6) tensor
+        print(f"Lambda = {Lambda}")
         res = xi @ Lambda @ xi
+        print(f"xi = {xi}")
 
         if tuple_size == 3:
             return l_ij.sqrt() * res.sqrt() * np.sqrt(2)
