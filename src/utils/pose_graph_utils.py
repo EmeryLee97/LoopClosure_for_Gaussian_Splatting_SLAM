@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 import cv2
-import open3d as o3d
 import theseus as th
 from typing import List, Union, Tuple, Optional
 
@@ -27,7 +26,7 @@ def matching_gaussian_clouds(
         epsilon: threshold for finding inlier correspondence
 
     Returns:
-
+        a list contains tuples of matching indices
     """
     if transformation.size() != torch.Size([4, 4]):
         raise ValueError(f"The size of input transformation matrix must be (4, 4), but get {transformation.size()}")
@@ -53,7 +52,7 @@ def matching_gaussian_clouds(
     return res_list
 
 
-def compute_relative_pose(input1, input2):
+def compute_relative_pose(pose_1, pose_2):
     """ 
     Caluculate the relative pose between two cameras using Gaussians inside the frustum
     Args:

@@ -1,12 +1,13 @@
 import torch
 import theseus as th
+from scipy.spatial.transform import Rotation
 
 from src.utils.pose_graph_utils import dense_surface_alignment
 
 points_1 = torch.empty(10, 3)
 points_2 = torch.empty(10, 3)
 
-rotation = torch.Tensor(((1, 0, 0), (0, 0, -1), (0, 1, 0)))
+rotation = Rotation.from_euler('xyz', [1.5, -2, 0.5], degrees=True)
 translation = torch.Tensor((1, 2, 1))
 relative_pose = torch.eye(4)
 relative_pose[:3, :3] = rotation
