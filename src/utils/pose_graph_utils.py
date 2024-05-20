@@ -1,23 +1,61 @@
 import numpy as np
 import torch
 import cv2
+import open3d as o3d
 import theseus as th
-from scipy.spatial.transform import Rotation
 from typing import List, Union, Tuple, Optional
+
+from scipy.spatial.transform import Rotation
+from scipy.spatial import KDTree
 
 from src.entities.gaussian_model import GaussianModel
 from src.utils.utils import to_skew_symmetric
 
 
-def select_gaussian_inliers() -> torch.Tensor:
+def matching_gaussian_clouds(
+        pts_1: torch.tensor,
+        pts_2: torch.tensor,
+        transformation: torch.tensor,
+        epsilon:float=5e-2
+    ) -> List[Tuple[int, int]]:
     """
-    Select inlier correspondences from two Gaussian clouds
+    Select inlier correspondences from two Gaussian clouds, use kd-tree to speed up
+
+    Args:
+        pts_1, pts_2: mean positions of 3D Gaussians
+        transformation: prior transformation matrix from one Gaussian cloud to the other
+        epsilon: threshold for finding inlier correspondence
+
+    Returns:
+
     """
-    pass
+    if transformation.size() != torch.Size([4, 4]):
+        raise ValueError(f"The size of input transformation matrix must be (4, 4), but get {transformation.size()}")
+
+    if pts_1.size(-1) != 1:
+        pts_1 = pts_1.unsqueeze(-1)
+
+    rotation = transformation[:3, :3]
+    translation = transformation[:3, 3]
+    pts_1_new = (rotation @ pts_1).squeeze() + translation
+
+    pts2_kdtree = KDTree(pts_2.numpy())
+
+    _, query_idx = pts2_kdtree.query(pts_1_new.numpy(), distance_upper_bound=epsilon, workers=-1)
+
+    data_size = pts_1.size()[0]
+    # It will be much faster if I fix the list size and do not use the append() method
+    res_list = []
+    for i in range(data_size):
+        if query_idx[i] != data_size:
+            res_list.append((i, query_idx[i]))
+
+    return res_list
 
 
 def compute_relative_pose(input1, input2):
-    """ Caluculate the relative pose between two cameras using Gaussians inside the frustum
+    """ 
+    Caluculate the relative pose between two cameras using Gaussians inside the frustum
     Args:
     Returns:
     """
@@ -29,7 +67,7 @@ def compute_relative_pose(input1, input2):
 def dense_surface_alignment(
         optim_vars: Union[Tuple[th.SE3, th.SE3], Tuple[th.SE3, th.SE3, torch.Tensor]],
         aux_vars: Tuple[torch.Tensor, torch.Tensor]
-        ) -> torch.Tensor:
+    ) -> torch.Tensor:
         """
         Compute the dense surface alignment error between two vertices, can be used as the error
         input to instantiate a th.CostFunction variable
