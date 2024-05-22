@@ -96,7 +96,7 @@ if __name__ == "__main__":
         abs_pose_i = abs_pose_noisy[idx]
         rotation_i = Rotation.from_matrix(abs_pose_i[:3, :3])
         quaternion_i = torch.Tensor(rotation_i.as_quat())
-        xyz_quaternion_i = torch.cat((abs_pose_i[:3, 3], quaternion_j))
+        xyz_quaternion_i = torch.cat((abs_pose_i[:3, 3], quaternion_i))
         vertex_i = th.SE3(xyz_quaternion_i)
             
         abs_pose_j = abs_pose_noisy[idx+1]
