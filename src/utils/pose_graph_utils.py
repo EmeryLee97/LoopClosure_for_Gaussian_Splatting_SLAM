@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import cv2
+import open3d as o3d
 import theseus as th
 from typing import List, Union, Tuple, Optional
 
@@ -8,10 +9,11 @@ from scipy.spatial.transform import Rotation
 from scipy.spatial import KDTree
 
 from src.entities.gaussian_model import GaussianModel
-from src.utils.utils import to_skew_symmetric
+from src.utils.mapper_utils import compute_camera_frustum_corners, compute_frustum_point_ids
+from src.utils.utils import to_skew_symmetric, torch2np, np2torch, np2ptcloud, preprocess_point_cloud
 
 
-def matching_gaussian_clouds(
+def match_gaussian_means(
         pts_1: torch.tensor,
         pts_2: torch.tensor,
         transformation: torch.tensor,
@@ -38,12 +40,13 @@ def matching_gaussian_clouds(
     translation = transformation[:3, 3]
     pts_1_new = (rotation @ pts_1).squeeze() + translation
 
-    pts2_kdtree = KDTree(pts_2.numpy())
+    pts_1_numpy = torch2np(pts_1_new)
+    pts_2_numpy = torch2np(pts_2)
+    pts2_kdtree = KDTree(pts_2_numpy)
 
-    _, query_idx = pts2_kdtree.query(pts_1_new.numpy(), distance_upper_bound=epsilon, workers=-1)
+    _, query_idx = pts2_kdtree.query(pts_1_numpy, distance_upper_bound=epsilon, workers=-1)
 
     data_size = pts_1.size()[0]
-    # It will be much faster if I fix the list size and do not use the append() method
     res_list = []
     for i in range(data_size):
         if query_idx[i] != data_size:
@@ -52,13 +55,68 @@ def matching_gaussian_clouds(
     return res_list
 
 
-def compute_relative_pose(pose_1, pose_2):
+# TODO: select hyperparameters
+# hyperparameters: voxel_size, distance_threshold_global, distance_threshold_local ...
+def compute_relative_pose(
+        depth_map_i: np.ndarray,
+        pose_i: np.ndarray,
+        gaussians_i: GaussianModel,
+        depth_map_j: np.ndarray,
+        pose_j: np.ndarray,
+        gaussians_j: GaussianModel,
+        intrinsics: np.ndarray,
+        voxel_size: float
+    ) -> np.ndarray:
     """ 
-    Caluculate the relative pose between two cameras using Gaussians inside the frustum
+    https://www.open3d.org/docs/latest/tutorial/Advanced/global_registration.html
+
+    Caluculate the relative pose between two cameras using mean positions of Gaussian clouds
+    inside the camera frustum, following a corse-to-fine process.
+
     Args:
+        depth_map_i, depth_map_j: ground truth depth map of the current keyframe, used to 
+            determine the near an far plane of the frustum
+        pose_i, pose_j: camera pose of the current keyframe
+        gaussians_i, gaussians_j: gaussian clouds for registration
+        intrinsics: camera intrinsic matrix of the dataset
+        voxel_size: voxel size for point cloud down sampling
+
     Returns:
+        relative pose between two keyframes
     """
-    pass
+    gaussian_points_i = gaussians_i.get_xyz()
+    camera_frustum_corners_i = compute_camera_frustum_corners(depth_map_i, pose_i, intrinsics)
+    reused_pts_ids_i = compute_frustum_point_ids(
+            gaussian_points_i, np2torch(camera_frustum_corners_i), device=gaussian_points_i.device)
+    point_cloud_i = np2ptcloud(gaussian_points_i[reused_pts_ids_i])
+    pcd_down_i, pcd_fpfh_i = preprocess_point_cloud(point_cloud_i, voxel_size)
+
+    gaussian_points_j = gaussians_j.get_xyz()
+    camera_frustum_corners_j = compute_camera_frustum_corners(depth_map_j, pose_j, intrinsics)
+    reused_pts_ids_j = compute_frustum_point_ids(
+            gaussian_points_j, np2torch(camera_frustum_corners_j), device=gaussian_points_j.device)
+    point_cloud_j = np2ptcloud(gaussian_points_j[reused_pts_ids_j])
+    pcd_down_j, pcd_fpfh_j = preprocess_point_cloud(point_cloud_j, voxel_size)
+
+    # use RANSAC for global registration on a heavily down-sampled point cloud
+    distance_threshold_global = voxel_size * 1.5
+    print(f"RANSAC registration on downsampled point clouds with a liberal distance threshold {distance_threshold_global}")
+    ransac_pose = o3d.pipelines.registration.registration_ransac_based_on_feature_matching(
+        pcd_down_i, pcd_down_j, pcd_fpfh_i, pcd_fpfh_j, distance_threshold_global,
+        o3d.pipelines.registration.TransformationEstimationPointToPoint(False),
+        4, [o3d.pipelines.registration.CorrespondenceCheckerBasedOnEdgeLength(0.9),
+            o3d.pipelines.registration.CorrespondenceCheckerBasedOnDistance(distance_threshold_global)], 
+            o3d.pipelines.registration.RANSACConvergenceCriteria(4000000, 500))
+    
+    # use Point-to-plane ICP to further refine the alignment
+    distance_threshold_local = voxel_size * 0.4
+    print(f"Point-to-plane ICP registration is applied on original point clouds to refine the alignment \
+           with a strict distance threshold {distance_threshold_local}")
+    icp_pose = o3d.pipelines.registration.registration_icp(
+        point_cloud_i, point_cloud_j, distance_threshold_local, ransac_pose.transformation,
+        o3d.pipelines.registration.TransformationEstimationPointToPlane())
+
+    return icp_pose.transformation
 
 
 # TODO: the gaussian_means must keep the same, do I need to detatch them and .to(cpu)?
@@ -78,7 +136,8 @@ def dense_surface_alignment(
 
             aux_vars: auxiliary variables registered in cost function, should contain
                 relative_pose: constraint between vertex_i and vertex_j
-                gaussian_means: mean positions of the 3D Gaussians inside frustum i
+                gaussian_means: mean positions of the 3D Gaussians inside frustum i 
+                    (gaussian means inside frustum j is not needed)
 
         Returns:
             square root of global place recognition error
@@ -104,7 +163,7 @@ def dense_surface_alignment(
             raise ValueError(f"Expected tensor size {(4, 4)}, but got {pose_j.size()}.")
         
         pose_mat: torch.Tensor = torch.inverse(relative_pose) @ torch.inverse(pose_j) @ pose_i
-        rot_mat: np.ndarray = pose_mat[:3, :3].numpy()
+        rot_mat: np.ndarray = torch2np(pose_mat[:3, :3])
         rot:Rotation = Rotation.from_matrix(rot_mat)
         axis_angle_rotation: np.ndarray = rot.as_rotvec()
         axis_angle: torch.Tensor = torch.Tensor(axis_angle_rotation)
@@ -114,13 +173,9 @@ def dense_surface_alignment(
 
         p_skew_symmetric = to_skew_symmetric(gaussian_means) # (n, 3， 3) tensor
         G_p = torch.cat((-p_skew_symmetric, torch.eye(3).unsqueeze(0).expand(gaussian_means.size()[0], -1, -1)), dim=-1) # (n, 3, 6) tensor
-        print(f"G_p = {G_p}")
         G_p_square = torch.matmul(G_p.transpose(1, 2), G_p) # (n, 6, 6) tensor
-        print(f"G_p_square: {G_p_square}")
         Lambda = torch.sum(G_p_square, dim=0) # (6, 6) tensor
-        print(f"Lambda = {Lambda}")
         res = xi @ Lambda @ xi
-        print(f"xi = {xi}")
 
         if tuple_size == 3:
             return l_ij.sqrt() * res.sqrt() * np.sqrt(2)
@@ -260,7 +315,7 @@ class GaussianSLAMPoseGraph:
         error_function = dense_surface_alignment(optim_vars=optim_vars, aux_vars=aux_vars)
         cost_weight = th.ScaleCostWeight(1)
         if self._requires_auto_grad:
-            cost_function = th.AutoDiffCostFunction( # is the 3rd input right?
+            cost_function = th.AutoDiffCostFunction( # is the 3rd input correct?
                 optim_vars, error_function, 1, cost_weight, aux_vars
                 )
             
