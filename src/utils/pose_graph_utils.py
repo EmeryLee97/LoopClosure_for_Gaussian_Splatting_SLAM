@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-import cv2
 import open3d as o3d
 import theseus as th
 from typing import List, Union, Tuple, Optional
@@ -121,9 +120,9 @@ def compute_relative_pose(
 
 # TODO: the gaussian_means must keep the same, do I need to detatch them and .to(cpu)?
 #       How to make sure l_ij is between [0, 1]? test this function
-def dense_surface_alignment(
+def dense_surface_alignment_old(
         optim_vars: Union[Tuple[th.SE3, th.SE3], Tuple[th.SE3, th.SE3, torch.Tensor]],
-        aux_vars: Tuple[torch.Tensor, torch.Tensor]
+        aux_vars: Tuple[th.Variable, th.Variable]
     ) -> torch.Tensor:
         """
         Compute the dense surface alignment error between two vertices, can be used as the error
@@ -146,21 +145,17 @@ def dense_surface_alignment(
         # determine whether the edge is odometry edge or loop closure edge
         tuple_size = len(optim_vars)
         if tuple_size == 2:
-            vertex_i, vertex_j = optim_vars
+            pose_i, pose_j = optim_vars
         elif tuple_size == 3:
-            vertex_i, vertex_j, l_ij = optim_vars
+            pose_i, pose_j, l_ij = optim_vars
         else:
             raise ValueError(f"optim_vars tuple size is {tuple_size}, which can only be 2 or 3.")
-        relative_pose, gaussian_means = aux_vars
+        relative_pose_th, gaussian_means_th = aux_vars
+        relative_pose = relative_pose_th.tensor
+        gaussian_means = gaussian_means_th.tensor
 
-        pose_i = vertex_i.to_matrix().squeeze() # (4, 4) tensor
-        pose_j = vertex_j.to_matrix().squeeze()
-
-        if pose_i.size() != torch.Size((4, 4)):
-            raise ValueError(f"Expected tensor size {(4, 4)}, but got {pose_i.size()}.")
-        
-        if pose_j.size() != torch.Size((4, 4)):
-            raise ValueError(f"Expected tensor size {(4, 4)}, but got {pose_j.size()}.")
+        if pose_i.shape[0] != 1 or pose_i.shape[0] != 1:
+            raise ValueError(f"Expected batch size = 1, but got {pose_i.shape[0]}.")
         
         pose_mat: torch.Tensor = torch.inverse(relative_pose) @ torch.inverse(pose_j) @ pose_i
         rot_mat: np.ndarray = torch2np(pose_mat[:3, :3])
@@ -178,15 +173,57 @@ def dense_surface_alignment(
         res = xi @ Lambda @ xi
 
         if tuple_size == 3:
-            return l_ij.sqrt() * res.sqrt() * np.sqrt(2)
+            return l_ij.sqrt() * res.sqrt()
         else:
-            return res.sqrt() * np.sqrt(2)
+            return res.sqrt()
 
 
-def line_process(
-        optim_vars: torch.Tensor,
-        aux_vars: Optional[Tuple] = None
+def dense_surface_alignment(
+        optim_vars: Union[Tuple[th.SE3, th.SE3], Tuple[th.SE3, th.SE3, th.Vector]],
+        aux_vars: Tuple[th.SE3, th.Point3]
     ) -> torch.Tensor:
+    """
+    Compute the dense surface alignment error between two vertices, can be used as the error
+    function input to instantiate a th.CostFunction variable
+
+    Args:
+        optim_vars: optimizaiton variables registered in cost function, should contain
+            pose_i, pose_j: correction matrix for pose i, j
+            l_ij (optional): line process coefficient
+
+        aux_vars: auxiliary variables registered in cost function, should contain
+            relative_pose: constraint between vertex_i and vertex_j
+            gaussian_means_i: mean positions of the 3D Gaussians inside camera frustum, 
+                represented in coordinate i and coordinate (those in coordinate j are not needed)
+
+    Returns:
+        square root of global place recognition error
+    """
+    # determine whether the edge is odometry edge or loop closure edge
+    tuple_size = len(optim_vars)
+    if tuple_size == 2:
+        pose_i, pose_j = optim_vars
+    elif tuple_size == 3:
+        pose_i, pose_j, l_ij = optim_vars
+    else:
+        raise ValueError(f"optim_vars tuple size is {tuple_size}, which can only be 2 or 3.")
+    relative_pose, gaussian_means_i = aux_vars
+
+    # transform all points in coordinate i and j to world coordinate
+    gaussian_means_i_transformed: th.Point3 = pose_i.transform_from(gaussian_means_i)
+    gaussian_means_j_transformed: th.Point3 = pose_j.transform_from(
+        relative_pose.transform_from(gaussian_means_i))
+
+    residual = (gaussian_means_i_transformed - gaussian_means_j_transformed).tensor
+
+    # check if this error function is used for odometry edge or loop edge
+    if tuple_size == 2:
+        return residual
+    else:
+        return torch.sqrt(l_ij.tensor) * residual
+
+
+def line_process(optim_vars: th.Vector, aux_vars=None) -> torch.Tensor:
     """
     Computes the line process error of a loop closrue edge, can be used as the error
     input to instantiate a th.CostFunction variable
@@ -195,13 +232,12 @@ def line_process(
         optim_vars:
             l_ij: jointly optimized weight (l_ij ∈ [0, 1]) over the loop edges
             (note that the scaling factor mu is considered as cost_weight)
-        aux_vars: nothing needs to be passed here
 
     Returns:
         square root of line process error
     """
-    l_ij = optim_vars
-    return l_ij.sqrt() - 1
+    l_ij, = optim_vars
+    return l_ij.tensor.sqrt() - 1
 
 
 """
@@ -264,7 +300,7 @@ class AdjacentVerticeCost(th.CostFunction):
             self._cost_weight.copy(), self._vertex_i.copy(), self._vertex_j.copy(), name=new_name
             )
 
-
+# not implemented
 class LoopClosureVerticeCost(th.CostFunction):
     def __init__():
         pass
@@ -279,89 +315,127 @@ class LoopClosureVerticeCost(th.CostFunction):
         pass
 
 
+class GaussianSLAMEdge:
+    def __init__(
+        self,
+        vertex_idx_i: int,
+        vertex_idx_j: int,
+        relative_pose: th.SE3,
+        cost_weight: th.CostWeight
+    ):
+        self.vertex_idx_i = vertex_idx_i
+        self.vertex_idx_j = vertex_idx_j
+        self.relative_pose = relative_pose
+        self.cost_weight = cost_weight
+
+    def to(self, *args, **kwargs):
+        self.weight.to(*args, **kwargs)
+        self.relative_pose.to(*args, **kwargs)
+
+
 class GaussianSLAMPoseGraph:
     def __init__(
         self, 
         requires_auto_grad = True
     ):
         self._requires_auto_grad = requires_auto_grad
-
         self._objective = th.Objective()
-        # hyperparameters
-        self._optimizer = th.LevenbergMarquardt(
-            objective=self._objective,
-            max_iterations=100,
-            step_size=1)
-        self._layer = th.TheseusLayer(self._optimizer)
-
-        """
-        The input is provided as a dictionary, where the keys represent either 
-            the optimization variables (which are paired with their initial values), 
-            or the auxiliary variables (which are paired with their data).
-        """
-        # TODO: add variables to this dictionary everytime new edge is added
-        #       create and add cost function to objective, depends on "auto_grad" 
         self._theseus_inputs = {} 
 
     def add_odometry_edge(
             self,
             vertex_i: th.SE3,
             vertex_j: th.SE3,
-            relative_pose: torch.Tensor,
-            gassian_means: torch.Tensor
+            edge: GaussianSLAMEdge,
+            gaussian_means: torch.Tensor
         ):
+
+        relative_pose = edge.relative_pose
+        cost_weight = edge.cost_weight
+
+        #gaussian_means_th = th.Point3(
+            #tensor=gaussian_means, 
+            #name=f"gaussian_means_odometry__{edge.vertex_idx_i}_{edge.vertex_idx_j}")
         optim_vars = vertex_i, vertex_j
-        aux_vars = relative_pose, gassian_means
-        error_function = dense_surface_alignment(optim_vars=optim_vars, aux_vars=aux_vars)
-        cost_weight = th.ScaleCostWeight(1)
+        #aux_vars = relative_pose, gaussian_means_th
+
         if self._requires_auto_grad:
-            cost_function = th.AutoDiffCostFunction( # is the 3rd input correct?
-                optim_vars, error_function, 1, cost_weight, aux_vars
+            for point in gaussian_means:
+                point_th = th.Point3(tensor=point)
+                aux_vars = relative_pose, point_th
+                cost_function = th.AutoDiffCostFunction(
+                    optim_vars, dense_surface_alignment, 3, cost_weight, aux_vars
                 )
-            
-        self._objective.add(cost_function)
-        self._theseus_inputs.update({ # do I need to update aux vars?
-            vertex_i.name: vertex_i.tensor, 
-            vertex_j.name: vertex_j.tensor
+                self._objective.add(cost_function)
+
+            self._theseus_inputs.update({
+                vertex_i.name: vertex_i.tensor, 
+                vertex_j.name: vertex_j.tensor,
             })
+        else:
+            raise NotImplementedError()
 
     def add_loop_closure_edge(
             self,
             vertex_i: th.SE3,
             vertex_j: th.SE3,
-            l_ij: th.Variable, # specific type???
-            relative_pose: torch.tensor,
+            edge: GaussianSLAMEdge,
             gaussian_means: torch.tensor,
             coefficient: float # hyperparameter, not the same as in the paper
         ):
+
+        relative_pose = edge.relative_pose
+        cost_weight_alignment = edge.cost_weight
+
+        l_ij = th.Vector(
+            tensor=torch.ones(1, 1), 
+            name=f"line_process__{edge.vertex_idx_i}_{edge.vertex_idx_j}"
+        )
+        #gaussian_means_th = th.Point3(
+            #tensor=gaussian_means, 
+            #name=f"gaussian_means_odometry__{edge.vertex_idx_i}_{edge.vertex_idx_j}")
+
         optim_vars = vertex_i, vertex_j, l_ij
-        aux_vars = relative_pose, gaussian_means,
+        #aux_vars = relative_pose, gaussian_means_th
 
-        error_function_1 = dense_surface_alignment(optim_vars=optim_vars, aux_vars=aux_vars)
-        cost_weight_1 = th.ScaleCostWeight(1)
-
-        error_function_2 = line_process(optim_vars=optim_vars, aux_vars=aux_vars)
-        cost_weight_2 = th.ScaleCostWeight(coefficient)
+        cost_weight_line_process = th.ScaleCostWeight(coefficient)
 
         if self._requires_auto_grad:
-            cost_function_1 = th.AutoDiffCostFunction(
-                optim_vars, error_function_1, 1, cost_weight_1, aux_vars)
-            cost_function_2 = th.AutoDiffCostFunction(
-                optim_vars, error_function_2, 1, cost_weight_2, aux_vars)
-            
-        self._objective.add(cost_function_1)
-        self._objective.add(cost_function_2)
+            for point in gaussian_means:
+                point_th = th.Point3(tensor=point)
+                aux_vars = relative_pose, point_th
+                cost_function = th.AutoDiffCostFunction(
+                    optim_vars, dense_surface_alignment, 3, cost_weight_alignment, aux_vars
+                )
+                self._objective.add(cost_function)
+                
+            # auxiliary variables can be not declared
+            optim_vars = l_ij,
+            cost_function = th.AutoDiffCostFunction(
+                optim_vars, line_process, 1, cost_weight_line_process
+            )
+            self._objective.add(cost_function)
         
-        self._theseus_inputs.update({ # do I need to update aux vars?
-            vertex_i.name: vertex_i.tensor, 
-            vertex_j.name: vertex_j.tensor
+            self._theseus_inputs.update({
+                vertex_i.name: vertex_i.tensor, 
+                vertex_j.name: vertex_j.tensor,
+                l_ij.name: l_ij.tensor,
             })
+        else:
+            raise NotImplementedError()
         
-    def optimize(self):
+    def optimize(self, max_iterations=1e3, step_size=0.01, track_best_solution=True, verbose=False):
+        optimizer = th.LevenbergMarquardt(
+            objective=self._objective,
+            max_iterations=max_iterations,
+            step_size=step_size)
+        
+        layer = th.TheseusLayer(optimizer)
+
         with torch.no_grad():
-            _, info = self._layer.forward(
+            _, info = layer.forward(
                 self._theseus_inputs, 
-                optimizer_kwargs={"track_best_solution":True, "verbose":True}
+                optimizer_kwargs={"track_best_solution":track_best_solution, "verbose":verbose}
                 )
         return info
 
