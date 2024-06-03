@@ -1,7 +1,7 @@
 project_name: "Gaussian_SLAM_replica"
 dataset_name: "replica"
 checkpoint_path: null
-use_wandb: False
+use_wandb: True
 frame_limit: -1 # for debugging, set to -1 to disable
 seed: 0
 mapping:
