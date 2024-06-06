@@ -417,7 +417,7 @@ if __name__ == "__main__":
             pose_graph.add_loop_closure_edge(vertex_i, vertex_j, edge, point_list[vertex_idx_i].tensor[inlier_idx_i, :], num_matches, tau=0.2)
 
     #print(pose_graph._objective.error().shape)
-    info = pose_graph.optimize(max_iterations=1e4, step_size=0.1, damping=0.5, verbose=False)
+    info = pose_graph.optimize(max_iterations=1e4, step_size=0.01, damping=0.1, verbose=False)
     print(info)
     print(f"vertex_1 ground truth: {abs_pose_gt_list[1]}")
     print(f"vertex_2 ground truth: {abs_pose_gt_list[2]}")
