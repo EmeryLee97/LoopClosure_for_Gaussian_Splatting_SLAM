@@ -134,7 +134,7 @@ class LoopClosureDetector:
         self.model.add_module('encoder', encoder)
         self.model.add_module('pool', pool)
 
-        device = 'gpu' if torch.cuda.is_available() else 'cpu'
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
         checkpoint = torch.load(self.ckpt_path, map_location=torch.device(device))
         self.model.load_state_dict(checkpoint['state_dict'])
         self.model.eval()
