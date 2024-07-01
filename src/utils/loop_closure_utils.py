@@ -151,7 +151,7 @@ class LoopClosureDetector:
         return torch2np(netvlad_feature)
         
     def add_to_index(self, image: torch.Tensor) -> None:
-
+        print(f"Adding first rgb image of the current submap into Faiss index.")
         netvlad_feature = self._netvlad_feature(image)
         
         if self.index_faiss is None:
