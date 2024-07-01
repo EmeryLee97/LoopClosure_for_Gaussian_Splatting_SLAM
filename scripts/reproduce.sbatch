@@ -11,12 +11,13 @@
 #SBATCH --mail-type=ALL
 #SBATCH --array=0-4  # number of scenes, 0-7 for Replica, 0-2 for TUM_RGBD, 0-5 for ScanNet, 0-4 for ScanNet++
 
-dataset="Replica" # set dataset
+dataset="TUM_RGBD" # set dataset
 if [ "$dataset" == "Replica" ]; then
     scenes=("room0" "room1" "room2" "office0" "office1" "office2" "office3" "office4")
     INPUT_PATH="/home/stud/lxuh/storage/user/lxuh/data/Replica"
 elif [ "$dataset" == "TUM_RGBD" ]; then
-    scenes=("rgbd_dataset_freiburg1_desk" "rgbd_dataset_freiburg2_xyz" "rgbd_dataset_freiburg3_long_office_household")
+    #scenes=("rgbd_dataset_freiburg1_desk" "rgbd_dataset_freiburg2_xyz" "rgbd_dataset_freiburg3_long_office_household")
+    scenes=("rgbd_dataset_freiburg1_desk")
     INPUT_PATH="/home/stud/lxuh/storage/group/dataset_mirrors/tum_rgbd_benchmark"
 elif [ "$dataset" == "ScanNet" ]; then
     scenes=("scene0000_00" "scene0059_00" "scene0106_00" "scene0169_00" "scene0181_00" "scene0207_00")
@@ -31,7 +32,7 @@ fi
 
 OUTPUT_PATH="output"
 CONFIG_PATH="configs/${dataset}"
-EXPERIMENT_NAME="reproduce"
+EXPERIMENT_NAME="test_loop_closure"
 SCENE_NAME=${scenes[$SLURM_ARRAY_TASK_ID]}
 
 source ~/anaconda3/etc/profile.d/conda.sh # please change accordingly
