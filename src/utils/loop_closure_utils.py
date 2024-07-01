@@ -117,7 +117,7 @@ class LoopClosureDetector:
         netvlad as its pool, then load a local check point to update its state dictionary
         """
         self.ckpt_path = config["netvlad_checkpoint_path"]
-        self.encoder_name = config["encoder"]
+        self.encoder_name = config["encode_name"]
         self.k_neighbours = config["k_neighbours"]
         self.index_faiss = None
 
