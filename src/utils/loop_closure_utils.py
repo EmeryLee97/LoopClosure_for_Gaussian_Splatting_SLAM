@@ -140,9 +140,8 @@ class LoopClosureDetector:
         self.model.load_state_dict(checkpoint['state_dict'])
         self.model.eval()
 
-    def _netvlad_feature(self, image: np.ndarray) -> np.ndarray:
+    def _netvlad_feature(self, image: torch.Tensor) -> np.ndarray:
         """ calculate the netvlad feature of a given rgb image """
-        image_tensor = np2torch(image, 'cuda')
         if len(image.shape) != 4: # no batch dimension
             image_tensor = image_tensor.unsqueeze(0)
 

@@ -182,7 +182,10 @@ class GaussianSLAM(object):
         current_submap_pose = self.estimated_c2ws[current_submap_id]
         vertex_j = self.pose_graph.objective.get_optim_var(f"VERTEX_SE3__{current_submap_id}")
         
-        loop_submap_id_list = self.loop_closure_detector.detect_knn(current_submap_rgb, add_to_index=True)
+        loop_submap_id_list = self.loop_closure_detector.detect_knn(
+            np2torch(current_submap_rgb, 'cuda'), 
+            add_to_index=True
+        )
         for loop_submap_ordinal in loop_submap_id_list:
             loop_submap_id = self.new_submap_frame_ids[loop_submap_ordinal]
             loop_submap_depth = self.dataset[loop_submap_id][2]
@@ -226,11 +229,11 @@ class GaussianSLAM(object):
         current_submap_rgb = self.dataset[current_submap_id][1]
         # For the first submap, only add rgb image to faiss index
         if len(self.new_submap_frame_ids) == 1:
-            self.loop_closure_detector.add_to_index(current_submap_rgb)
+            self.loop_closure_detector.add_to_index(np2torch(current_submap_rgb, 'cuda'))
         # For the second submap, add odometry constraint to pose graph, add rgb image to faiss index
         elif len(self.new_submap_frame_ids) == 2:
             self.create_odometry_constraint(gaussian_model_current, cost_weight)
-            self.loop_closure_detector.add_to_index(current_submap_rgb)
+            self.loop_closure_detector.add_to_index(np2torch(current_submap_rgb, 'cuda'))
         # For the other submaps, add odometry and loop constraints to pose graph, add rgb images to faiss index
         else:
             self.create_odometry_constraint(gaussian_model_current, cost_weight)
@@ -257,7 +260,7 @@ class GaussianSLAM(object):
         gaussian_model = GaussianModel(0)
         gaussian_model.training_setup(self.opt)
         self.submap_id = 0
-        self.loop_closure_detector.add_to_index(self.dataset[0][1])
+        #self.loop_closure_detector.add_to_index(self.dataset[0][1])
 
         for frame_id in range(len(self.dataset)):
 
