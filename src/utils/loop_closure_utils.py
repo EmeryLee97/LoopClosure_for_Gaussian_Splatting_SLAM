@@ -6,6 +6,7 @@ import torchvision.models as models
 import faiss
 from sklearn.neighbors import NearestNeighbors
 from typing import List, Dict
+from src.utils.utils import np2torch, torch2np
 
 """
 We thank Nanne https://github.com/Nanne/pytorch-NetVlad for the original design of the NetVLAD
@@ -139,15 +140,16 @@ class LoopClosureDetector:
         self.model.load_state_dict(checkpoint['state_dict'])
         self.model.eval()
 
-    def _netvlad_feature(self, image: torch.Tensor) -> np.ndarray:
+    def _netvlad_feature(self, image: np.ndarray) -> np.ndarray:
         """ calculate the netvlad feature of a given rgb image """
+        image_tensor = np2torch(image, 'cuda')
         if len(image.shape) != 4: # no batch dimension
-            image = image.unsqueeze(0)
+            image_tensor = image_tensor.unsqueeze(0)
 
-        encoder_feature = self.model.encoder(image)
+        encoder_feature = self.model.encoder(image_tensor)
         netvlad_feature = self.model.pool(encoder_feature)
 
-        return netvlad_feature.detach().numpy()
+        return torch2np(netvlad_feature)
         
     def add_to_index(self, image: torch.Tensor) -> None:
 
