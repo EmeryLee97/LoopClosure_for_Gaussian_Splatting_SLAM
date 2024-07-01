@@ -47,5 +47,5 @@ pose_graph:
 	verbose: False
 loop_closure:
   netvlad_checkpoint_path: vgg16_netvlad_checkpoint/checkpoints/checkpoint.pth.tar
-	encoder_name: “vgg16”
+	encoder_name: "vgg16"
 	k_neighbours: 4
