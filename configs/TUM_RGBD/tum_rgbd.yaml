@@ -7,7 +7,7 @@ frame_limit: -1 # for debugging, set to -1 to disable
 seed: 0
 mapping:
   new_submap_every: 50
-  map_every: 1
+  map_every: 5
   iterations: 100
   new_submap_iterations: 100
   new_submap_points_num: 100000 
