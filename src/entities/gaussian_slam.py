@@ -70,7 +70,7 @@ class GaussianSLAM(object):
 
         # TODO: add ckpt_netvlad and other params to config
         self.optimize_with_loop_closure = config["optimize_with_loop_closure"]
-        if self.loop_closure_optimizaiton:
+        if self.optimize_with_loop_closure:
             self.loop_closure_detector = LoopClosureDetector(config["loop_closure"])
             self.pose_graph = GaussianSLAMPoseGraph(config["pose_graph"])
             print('Loop closure config')  
