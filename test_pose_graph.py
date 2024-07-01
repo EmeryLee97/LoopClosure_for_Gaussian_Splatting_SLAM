@@ -428,3 +428,4 @@ if __name__ == "__main__":
     print(f"vertex_7 ground truth: {abs_pose_gt_list[7]}")
     print(f"vertex_8 ground truth: {abs_pose_gt_list[8]}")
     print(f"vertex_9 ground truth: {abs_pose_gt_list[9]}")
+

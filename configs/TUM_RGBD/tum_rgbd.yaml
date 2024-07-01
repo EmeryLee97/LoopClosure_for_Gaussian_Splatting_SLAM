@@ -2,6 +2,7 @@ project_name: "Gaussian_SLAM_tumrgbd"
 dataset_name: "tum_rgbd"
 checkpoint_path: null
 use_wandb: True
+optimize_with_loop_closure: True
 frame_limit: -1 # for debugging, set to -1 to disable
 seed: 0
 mapping:
@@ -35,3 +36,16 @@ tracking:
 cam:
   crop_edge: 16
   depth_scale: 5000.0
+pose_graph:
+  loop_inlier_threshold: 0.25
+	correspondence_factor: 0.2
+	center_matching_threshold: 0.05
+	optimization_max_iterations: 1000
+	optimization_step_size: 0.005
+	damping: 0.1
+	track_best_solution: True
+	verbose: False
+loop_closure:
+  netvlad_checkpoint_path: vgg16_netvlad_checkpoint/checkpoints/checkpoint.pth.tar
+	encoder_name: “vgg16”
+	k_neighbours: 4

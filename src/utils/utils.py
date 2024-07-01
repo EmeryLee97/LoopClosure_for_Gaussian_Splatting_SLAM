@@ -228,7 +228,7 @@ def to_skew_symmetric(tensor: torch.Tensor):
     if len(size) > 2 or size[-1] != 3:
         raise ValueError("Incorrect tensor dimension!")
     
-    skew_symmetric = torch.zeros(tensor.size()+(3, ), dtype=tensor.dtype, device=tensor.device)
+    skew_symmetric = torch.zeros(tensor.shape+(3, ), dtype=tensor.dtype, device=tensor.device)
 
     skew_symmetric[..., 0, 1] = -tensor[..., 2]
     skew_symmetric[..., 0, 2] = tensor[..., 1]
@@ -238,6 +238,14 @@ def to_skew_symmetric(tensor: torch.Tensor):
     skew_symmetric[..., 2, 1] = tensor[..., 0]
 
     return skew_symmetric
+
+
+def get_id_from_string(input_string) -> int:
+    """ Given a string like f"VERTEX_SE3__{str(id).zfill(6)}", return id """
+    start_idx = input_string.find('__') + 2
+    id = input_string[start_idx:].lstrip('0')
+    return int(id)
+
 
 
 # TODO: select hyperparameters, see what's the ratio of down-sampling

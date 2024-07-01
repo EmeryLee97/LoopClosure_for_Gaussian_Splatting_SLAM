@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import torchvision.models as models
 import faiss
 from sklearn.neighbors import NearestNeighbors
-from typing import List
+from typing import List, Dict
 
 """
 We thank Nanne https://github.com/Nanne/pytorch-NetVlad for the original design of the NetVLAD
@@ -111,12 +111,17 @@ class NetVLAD(nn.Module):
 
 class LoopClosureDetector:
 
-    def __init__(self, ckpt_path: str, encoder='vgg16'):
+    def __init__(self, config: Dict):
         """
         Create a neural network with a CNN architecture (vgg16 by default) as its encoder, 
         netvlad as its pool, then load a local check point to update its state dictionary
         """
-        if encoder == 'vgg16':
+        self.ckpt_path = config["netvlad_checkpoint_path"]
+        self.encoder_name = config["encoder"]
+        self.k_neighbours = config["k_neighbours"]
+        self.index_faiss = None
+
+        if self.encoder_name == 'vgg16':
             vgg16_model = models.vgg16()
             # capture only feature part and remove last relu and maxpool
             layers = list(vgg16_model.features.children())[:-2]
@@ -130,14 +135,12 @@ class LoopClosureDetector:
         self.model.add_module('pool', pool)
 
         device = 'gpu' if torch.cuda.is_available() else 'cpu'
-        checkpoint = torch.load(ckpt_path, map_location=torch.device(device))
+        checkpoint = torch.load(self.ckpt_path, map_location=torch.device(device))
         self.model.load_state_dict(checkpoint['state_dict'])
         self.model.eval()
 
-        self.index_faiss = None
-
     def _netvlad_feature(self, image: torch.Tensor) -> np.ndarray:
-
+        """ calculate the netvlad feature of a given rgb image """
         if len(image.shape) != 4: # no batch dimension
             image = image.unsqueeze(0)
 
@@ -150,39 +153,38 @@ class LoopClosureDetector:
 
         netvlad_feature = self._netvlad_feature(image)
         
-        if not self.index_faiss:
-            dim = netvlad_feature.shape[-1]
-            self.index_faiss = faiss.IndexFlatIP(dim)
+        if self.index_faiss is None:
+            self.netvlad_dim = netvlad_feature.shape[-1]
+            self.index_faiss = faiss.IndexFlatIP(self.netvlad_dim)
             
         self.index_faiss.add(netvlad_feature)
-
     
-    def detect_knn(self, query_image: torch.Tensor, k=5, add_to_index=True) -> List:
-        """
-        Transform the query image into a netvlad feature vector, then search 
-        for k nearest neighbours of given query image in a faiss index object
-        Args:
-            query_image: query image
-            k: search for k nearest neighbours
-        Returns:
-            List of k global keyframe indices, most similar frame comes first
-            (indices in the global keyframe list, not in the entire dataset)
+    def detect_knn(self, query_image: torch.Tensor, add_to_index=True) -> List:
+        """ Transform the query image into a netvlad feature vector, search for k nearest 
+        neighbours of that feature in a faiss index object, returns index mask as output
         """
         netvlad_feature = self._netvlad_feature(query_image)
 
         # TODO: at the beginning of slam, there's no or only few vectors in faiss index
         # also test with hyperparameter k
-        _, idx_list = self.index_faiss.search(netvlad_feature, k)
+        if self.index_faiss.ntotal <= self.k_neighbours + 1:
+            return list(range(self.index_faiss.ntotal - 1))
+
+        _, idx_list = self.index_faiss.search(netvlad_feature, self.k_neighbours)
+        # The previous submap index should not be detected
+        if self.index_faiss.ntotal-1 in idx_list:
+            idx_list.remove(self.index_faiss.ntotal-1)
 
         if add_to_index:
             self.index_faiss.add(netvlad_feature)
-            
-        return idx_list
-        
-        self.index_faiss.add(netvlad_feature)
 
-    def reset_index(self) -> None:
+        return idx_list
+
+    def reset_faiss_index(self) -> None:
         self.faiss_index.reset()
+
+    def __len__(self) -> int:
+        return self.index_faiss.ntotal
 
     
 
