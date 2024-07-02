@@ -276,7 +276,7 @@ class GaussianSLAM(object):
             if self.should_start_new_submap(frame_id):
                 if self.optimize_with_loop_closure:
                     print(f"Optimizing with loop closure, currently {len(self.new_submap_frame_ids)} submaps.")
-                    self.pose_graph_optimization(frame_id, gaussian_model, 1.0)
+                    #self.pose_graph_optimization(frame_id, gaussian_model, 1.0)
                     
                 save_dict_to_ckpt(self.estimated_c2ws[:frame_id + 1], "estimated_c2w.ckpt", directory=self.output_path)
                 gaussian_model = self.start_new_submap(frame_id, gaussian_model)
