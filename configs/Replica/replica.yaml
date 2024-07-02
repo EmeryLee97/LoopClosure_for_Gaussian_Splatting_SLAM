@@ -1,4 +1,4 @@
-project_name: "Gaussian_SLAM_replica"
+project_name: "Loop_Gaussian_SLAM_replica"
 dataset_name: "replica"
 checkpoint_path: null
 use_wandb: True

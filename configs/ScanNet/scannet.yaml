@@ -1,4 +1,4 @@
-project_name: "Gaussian_SLAM_scannet"
+project_name: "Loop_Gaussian_SLAM_scannet"
 dataset_name: "scan_net"
 checkpoint_path: null
 use_wandb: True
