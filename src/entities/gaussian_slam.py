@@ -68,7 +68,7 @@ class GaussianSLAM(object):
         print('Mapping config')
         pprint.PrettyPrinter().pprint(config["mapping"])      
 
-        # TODO: add ckpt_netvlad and other params to config
+        """
         self.optimize_with_loop_closure = config["optimize_with_loop_closure"]
         if self.optimize_with_loop_closure:
             self.loop_closure_detector = LoopClosureDetector(config["loop_closure"])
@@ -77,6 +77,7 @@ class GaussianSLAM(object):
             pprint.PrettyPrinter().pprint(config["loop_closure"])
             print('Pose graph config')
             pprint.PrettyPrinter().pprint(config["pose_graph"])
+        """
         
 
     def _setup_output_path(self, config: dict) -> None:
@@ -274,8 +275,8 @@ class GaussianSLAM(object):
 
             # Reinitialize gaussian model for new segment
             if self.should_start_new_submap(frame_id):
-                if self.optimize_with_loop_closure:
-                    print(f"Optimizing with loop closure, currently {len(self.new_submap_frame_ids)} submaps.")
+                #if self.optimize_with_loop_closure:
+                   #print(f"Optimizing with loop closure, currently {len(self.new_submap_frame_ids)} submaps.")
                     #self.pose_graph_optimization(frame_id, gaussian_model, 1.0)
                     
                 save_dict_to_ckpt(self.estimated_c2ws[:frame_id + 1], "estimated_c2w.ckpt", directory=self.output_path)
