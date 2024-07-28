@@ -4,7 +4,6 @@ import random
 import numpy as np
 import open3d as o3d
 import torch
-from typing import Tuple
 from gaussian_rasterizer import GaussianRasterizationSettings, GaussianRasterizer
 
 
@@ -210,73 +209,9 @@ def batch_search_faiss(indexer, query_points, k):
     return distances, ids
 
 
-def to_skew_symmetric(tensor: torch.Tensor):
-    """
-    Transform a (3, ) tensor to a (3, 3) tensor, or
-    Transform a (n, 3) tensor to a (n, 3, 3) tensor, where n is the batch size
-
-    Args:
-        tensor (torch.Tensor): 3-vector(s) that need(s) to be transformed to skew symmetric matrix
-
-    Returns:
-        skew_symmetric (torch.Tensor): transformed skew symmetric matrices
-    """
-    if not isinstance(tensor, torch.Tensor):
-        raise TypeError("Input must be a torch.Tensor")
-    
-    size = tensor.size()
-    if len(size) > 2 or size[-1] != 3:
-        raise ValueError("Incorrect tensor dimension!")
-    
-    skew_symmetric = torch.zeros(tensor.shape+(3, ), dtype=tensor.dtype, device=tensor.device)
-
-    skew_symmetric[..., 0, 1] = -tensor[..., 2]
-    skew_symmetric[..., 0, 2] = tensor[..., 1]
-    skew_symmetric[..., 1, 0] = tensor[..., 2]
-    skew_symmetric[..., 1, 2] = -tensor[..., 0]
-    skew_symmetric[..., 2, 0] = -tensor[..., 1]
-    skew_symmetric[..., 2, 1] = tensor[..., 0]
-
-    return skew_symmetric
-
-
 def get_id_from_string(input_string) -> int:
     """ Given a string like f"VERTEX_SE3__{str(id).zfill(6)}", return id """
     start_idx = input_string.find('__') + 2
     id = input_string[start_idx:].lstrip('0')
     return int(id)
 
-
-
-# TODO: select hyperparameters, see what's the ratio of down-sampling
-# hyperparameters: voxel_size, radius_normal, max_nn, radius_feature
-def preprocess_point_cloud(
-        pcd: o3d.geometry.PointCloud, 
-        voxel_size=0.05
-    ) -> Tuple[o3d.geometry.PointCloud, o3d.pipelines.registration.Feature]:
-    """
-    https://www.open3d.org/docs/latest/tutorial/Advanced/global_registration.html
-
-    Downsample the given point cloud, estimate normals, then compute a FPFH feature for each point
-
-    Args:
-        pcd: input point cloud
-        voxel_size: size of voxels, inside which only one point will be sampled
-
-    Return:
-        pcd_down: down-sampled point cloud
-        pcd_fpfh: FPFH features describing the local geometric property of a point
-    """
-    print(f"Downsample point cloud with a voxel size {voxel_size}.")
-    pcd_down = pcd.voxel_down_sample(voxel_size)
-
-    radius_normal = voxel_size * 2
-    print(f"Estimate normal with search radius {radius_normal}.")
-    pcd_down.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=30))
-
-    radius_feature = voxel_size * 5
-    print(f"Compute FPFH feature with search radius {radius_feature}.")
-    pcd_fpfh = o3d.pipelines.registration.compute_fpfh_feature(
-        pcd_down,
-        o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=100))
-    return pcd_down, pcd_fpfh

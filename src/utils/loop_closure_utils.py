@@ -3,9 +3,9 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 import torchvision.models as models
-import faiss
+import faiss # pip install faiss-gpu
 from sklearn.neighbors import NearestNeighbors
-from typing import List, Dict
+from typing import List, Dict, Union, Tuple
 from src.utils.utils import np2torch, torch2np
 
 """
@@ -113,14 +113,11 @@ class NetVLAD(nn.Module):
 class LoopClosureDetector:
 
     def __init__(self, config: Dict):
-        """
-        Create a neural network with a CNN architecture (vgg16 by default) as its encoder, 
-        netvlad as its pool, then load a local check point to update its state dictionary
-        """
         self.ckpt_path = config["netvlad_checkpoint_path"]
         self.encoder_name = config["encoder_name"]
         self.k_neighbours = config["k_neighbours"]
         self.index_faiss = None
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
         if self.encoder_name == 'vgg16':
             vgg16_model = models.vgg16()
@@ -134,57 +131,64 @@ class LoopClosureDetector:
         self.model = nn.Module()
         self.model.add_module('encoder', encoder)
         self.model.add_module('pool', pool)
-
-        device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        checkpoint = torch.load(self.ckpt_path, map_location=torch.device(device))
+        self.model.to(self.device)
+        checkpoint = torch.load(self.ckpt_path, map_location=torch.device(self.device))
         self.model.load_state_dict(checkpoint['state_dict'])
         self.model.eval()
 
-    def _netvlad_feature(self, image: torch.Tensor) -> np.ndarray:
+    @ staticmethod
+    def get_netvlad_feature(model: torch.nn.Module, image: torch.Tensor, device) -> Union[np.ndarray, torch.Tensor]:
         """ calculate the netvlad feature of a given rgb image """
-        if len(image.shape) != 4: # no batch dimension
-            image_tensor = image_tensor.unsqueeze(0)
-
-        encoder_feature = self.model.encoder(image_tensor)
-        netvlad_feature = self.model.pool(encoder_feature)
-
+        encoder_feature = model.encoder(image.unsqueeze(0).to(device))
+        netvlad_feature = model.pool(encoder_feature)
         return torch2np(netvlad_feature)
         
-    def add_to_index(self, image: torch.Tensor) -> None:
-        print(f"Adding first rgb image of the current submap into Faiss index.")
-        netvlad_feature = self._netvlad_feature(image)
-        
+    def add_to_index(self, image=None, netvlad_feature=None) -> None:
+        """ Calculate the netvlad feature of an input image and add it to faiss index """
+        if netvlad_feature is None:
+            netvlad_feature = LoopClosureDetector.get_netvlad_feature(self.model, image, self.device)
         if self.index_faiss is None:
             self.netvlad_dim = netvlad_feature.shape[-1]
-            self.index_faiss = faiss.IndexFlatIP(self.netvlad_dim)
-            
+            if self.device == 'cuda': # use faiss-gpu
+                res = faiss.StandardGpuResources()
+                flat_config = faiss.GpuIndexFlatConfig()
+                flat_config.device = 0
+                self.index_faiss = faiss.GpuIndexFlatIP(res, self.netvlad_dim, flat_config)
+            else: # use faiss-cpu
+                self.index_faiss = faiss.IndexFlatIP(self.netvlad_dim)
+                netvlad_feature = torch2np(netvlad_feature)
         self.index_faiss.add(netvlad_feature)
     
-    def detect_knn(self, query_image: torch.Tensor, add_to_index=True) -> List:
-        """ Transform the query image into a netvlad feature vector, search for k nearest 
-        neighbours of that feature in a faiss index object, returns index mask as output
+    def detect_knn(self, query_image: torch.Tensor, add_to_index=True, filter_threshold=None) \
+        -> Tuple[Union[np.ndarray, torch.Tensor], List]:
+        """ Transform the query image into a netvlad feature vector, search for k nearest neighbours of that feature 
+        in a faiss index, remove all neighbours whose score is lower than a given threshold.
         """
-        netvlad_feature = self._netvlad_feature(query_image)
+        netvlad_feature = LoopClosureDetector.get_netvlad_feature(self.model, query_image, self.device)
+        if self.get_index_length() < self.k_neighbours:
+            k_neighbours = self.index_faiss.ntotal
+        else:
+            k_neighbours = self.k_neighbours
+        # idx_list has the same type as netvlad_feature (np.ndarrya or torch.Tensor)
+        score_list, idx_list = self.index_faiss.search(netvlad_feature, k_neighbours)
+        score_list = score_list.squeeze()
+        idx_list = idx_list.squeeze()
 
-        # TODO: at the beginning of slam, there's no or only few vectors in faiss index
-        # also test with hyperparameter k
-        if self.index_faiss.ntotal <= self.k_neighbours + 1:
-            return list(range(self.index_faiss.ntotal - 1))
-
-        _, idx_list = self.index_faiss.search(netvlad_feature, self.k_neighbours)
-        # The previous submap index should not be detected
-        if self.index_faiss.ntotal-1 in idx_list:
-            idx_list.remove(self.index_faiss.ntotal-1)
-
+        if filter_threshold is not None:
+            filter_mask = score_list >= filter_threshold
+            idx_list = idx_list[filter_mask]
+        idx_list = idx_list.tolist()
+        if self.get_index_length()-1 in idx_list:
+            idx_list.remove(self.get_index_length()-1)
         if add_to_index:
-            self.index_faiss.add(netvlad_feature)
-
-        return idx_list
+            self.add_to_index(netvlad_feature=netvlad_feature)
+        return score_list, idx_list
 
     def reset_faiss_index(self) -> None:
         self.faiss_index.reset()
 
-    def __len__(self) -> int:
+    def get_index_length(self) -> int:
+        """ check the number of features stored in faiss index """
         return self.index_faiss.ntotal
 
     
