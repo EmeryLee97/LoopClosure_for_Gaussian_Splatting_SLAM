@@ -1,29 +1,35 @@
 """ This module includes the GaussianSLAMEdge class and the GaussianSLAMPoseGraph class """
 
+from typing import List, Dict, Type
+
 import numpy as np
 import torch
 import theseus as th
-from typing import List, Dict, Type
 
-from src.entities.datasets import BaseDataset
 from src.entities.gaussian_model import GaussianModel
+from src.entities.logger import Logger
+from src.entities.datasets import BaseDataset
+from src.utils.gaussian_model_utils import SH2RGB
+
+from src.utils.utils import np2torch, np2ptcloud
 from src.utils.mapper_utils import compute_camera_frustum_corners, compute_frustum_point_ids
-from src.utils.utils import torch2np, np2torch, np2ptcloud
-from src.utils.io_utils import load_gaussian_ckpt
-from src.utils.pose_graph_utils import error_fn_dense_surface_alignment, error_fn_line_process, match_gaussian_means, \
-                                        downsample, point_cloud_registration
+from src.utils.pose_graph_utils import error_fn_dense_gaussian_alignment, match_gaussian_means, downsample
 
 
 class GaussianSLAMEdge:
-    def __init__(self, vertex_idx_i: int, vertex_idx_j: int, relative_pose: torch.Tensor, cost_weight=1.0, device='cpu'):
+    def __init__(
+        self, 
+        vertex_idx_i: int, 
+        vertex_idx_j: int, 
+        relative_pose: torch.Tensor, 
+        cost_weight=1.0, 
+        device='cuda:0'
+    ):
         # be careful of data type (torch.float64 and torch.float32)
         self.device = device
         self.vertex_idx_i = vertex_idx_i
         self.vertex_idx_j = vertex_idx_j
-        self.relative_pose = th.SE3(
-            tensor=relative_pose.squeeze().unsqueeze(0)[:, 3, :], 
-            name=f"EDGE_SE3__{str(vertex_idx_i).zfill(6)}_{str(vertex_idx_j).zfill(6)}"
-        )
+        self.relative_pose = relative_pose[:3, :].unsqueeze(0), 
         self.relative_pose.to(self.device)
         self.cost_weight = th.ScaleCostWeight(
             scale=cost_weight,
@@ -33,133 +39,100 @@ class GaussianSLAMEdge:
 
 
 class GaussianSLAMPoseGraph:
-    def __init__(self, config: Dict, device='cpu', requires_auto_grad=True):
+    def __init__(
+        self, 
+        config: Dict, 
+        dataset: Type[BaseDataset], 
+        logger: Logger,
+        device='cuda:0', 
+        requires_auto_grad=True
+    ):
+        self.dataset = dataset
+        self.logger = logger
         self._requires_auto_grad = requires_auto_grad
         self.device = device
         self.objective = th.Objective()
         self.objective.to(self.device)
 
         self.use_gt_relative_pose = config["use_gt_relative_pose"]
+        # self.opacity_threshold = config["opacity_threshold"]
         self.center_matching_threshold = config["center_matching_threshold"]
+        self.downsample_num = config["downsample_number"]
         self.optimization_max_iterations = config["optimization_max_iterations"]
         self.optimization_step_size = config["optimization_step_size"]
-        self.loop_inlier_threshold = config["loop_inlier_threshold"]
         self.correspondence_factor = config["correspondence_factor"]
+        self.rel_err_tolerance = config["rel_err_tolerance"]
         self.damping = config["damping"]
         self.track_best_solution = config["track_best_solution"]
         self.verbose = config["verbose"]
 
-    def add_odometry_edge(self,
-            vertex_i: th.SE3,
-            vertex_j: th.SE3,
+    def add_edge(
+            self, 
+            vertex_i: th.SE3, 
+            vertex_j: th.SE3, 
             edge: GaussianSLAMEdge,
-            gaussian_means: torch.Tensor # should have shape (num_pts, 3)
+            gaussian_xyz_i: torch.Tensor, 
+            gaussian_scaling_i: torch.Tensor, 
+            gaussian_rotation_i: torch.Tensor, 
+            gaussian_color_i: torch.Tensor,
+            gaussian_xyz_j: torch.Tensor, 
+            gaussian_color_j: torch.Tensor,
         ) -> None:
-        """ add an odometry constraint to the objective"""
-        gaussian_means_th = th.Variable(
-            tensor=gaussian_means.unsqueeze(0), 
-            name=f"GAUSSIAN_MEANS_ODOMETRY__{str(edge.vertex_idx_i).zfill(6)}_{str(edge.vertex_idx_j).zfill(6)}"
-        )
+        """ add an odometry edge or loop edge to the objective """
+        num_matches = gaussian_xyz_i.shape[0]
+        gaussian_xyz_i_th = th.Variable(tensor=gaussian_xyz_i.unsqueeze(0)) # (1, num_gs, 3)
+        gaussian_scaling_i_th = th.Variable(tensor=gaussian_scaling_i.unsqueeze(0)) # (1, num_gs, 3)
+        gaussian_rotation_i_th = th.Variable(tensor=gaussian_rotation_i.unsqueeze(0)) # (1, num_gs, 4)
+        gaussian_color_i_th = th.Variable(tensor=gaussian_color_i.unsqueeze(0)) # (1, num_gs, 3)
+        gaussian_xyz_j_th = th.Variable(tensor=gaussian_xyz_j.unsqueeze(0)) # (1, num_gs, 3)
+        gaussian_color_j_th = th.Variable(tensor=gaussian_color_j.unsqueeze(0)) # (1, num_gs, 3)
+
+        gaussian_xyz_i_th.to(self.device)
+        gaussian_scaling_i_th.to(self.device)
+        gaussian_rotation_i_th.to(self.device)
+        gaussian_color_i_th.to(self.device)
+        gaussian_xyz_j_th.to(self.device)
+        gaussian_color_j_th.to(self.device)
         vertex_i.to(self.device)
         vertex_j.to(self.device)
-        gaussian_means_th.to(self.device)
+
+        # vertex_0 should not be optimzied
+        if edge.vertex_idx_i == 0:
+            optim_vars = [vertex_i, ]
+            aux_vars = [vertex_j, gaussian_xyz_i_th, gaussian_scaling_i_th, gaussian_rotation_i_th, 
+                        gaussian_color_i_th, gaussian_xyz_j_th, gaussian_color_j_th]
+        else:
+            optim_vars = [vertex_i, vertex_j]
+            aux_vars = [gaussian_xyz_i_th, gaussian_scaling_i_th, gaussian_rotation_i_th, 
+                        gaussian_color_i_th, gaussian_xyz_j_th, gaussian_color_j_th]
 
         if self._requires_auto_grad:
             cost_fn = th.AutoDiffCostFunction(
-                optim_vars=[vertex_i, vertex_j],
-                err_fn=error_fn_dense_surface_alignment, 
-                dim=gaussian_means.shape[0], 
+                optim_vars=optim_vars,
+                err_fn=error_fn_dense_gaussian_alignment, 
+                dim=num_matches,
                 cost_weight=edge.cost_weight, 
-                aux_vars=[edge.relative_pose, gaussian_means_th],
-                name=f"COST_FUNCTION_REGISTRATION__{str(edge.vertex_idx_i).zfill(6)}_{str(edge.vertex_idx_j).zfill(6)}"
+                aux_vars=aux_vars,
+                name=f"COST_FUNCTION__{str(edge.vertex_idx_i).zfill(6)}_{str(edge.vertex_idx_j).zfill(6)}"
             )
             self.objective.add(cost_fn)
         else:
             raise NotImplementedError()
 
-    def add_loop_closure_edge(
-            self,
-            vertex_i: th.SE3,
-            vertex_j: th.SE3,
-            edge: GaussianSLAMEdge,
-            gaussian_means: torch.Tensor, # matching inliers
-        ) -> None:
-        """ Add a loop constraint to the objective
-        Args:
-            vertex_i: absolute pose of a loop frame
-            vertex_j: absolute pose of the current frame
-            edge: loop edge with measured relative pose betwwen those frames
-            gaussian_means: selected inlier machings, can be from either submap
-            tau: fairly liberal distance threshold
-        """
-        num_matches = gaussian_means.shape[0]
-        cost_weight_registration = edge.cost_weight # for dense surface alignment
-        cost_weight_mu = cost_weight_registration.scale.tensor.squeeze() * np.sqrt(num_matches) * self.correspondence_factor
-        cost_weight_line_process = th.ScaleCostWeight(cost_weight_mu) # for line process
-
-        l_ij = th.Vector(
-            tensor=torch.ones(1, 1), 
-            name=f"LINE_PROCESS__{str(edge.vertex_idx_i).zfill(6)}_{str(edge.vertex_idx_j).zfill(6)}"
-        )
-        gaussian_means_th = th.Variable(
-            tensor=gaussian_means.unsqueeze(0), 
-            name=f"GAUSSIAN_MEANS_ODOMETRY__{str(edge.vertex_idx_i).zfill(6)}_{str(edge.vertex_idx_j).zfill(6)}")
-        
-        vertex_i.to(self.device)
-        vertex_j.to(self.device)
-        cost_weight_line_process.to(self.device)
-        l_ij.to(self.device)
-        gaussian_means_th.to(self.device)
-
-        if self._requires_auto_grad:
-            cost_fn_registration = th.AutoDiffCostFunction(
-                optim_vars=[vertex_i, vertex_j, l_ij], 
-                err_fn=error_fn_dense_surface_alignment, 
-                dim=gaussian_means.shape[0],
-                cost_weight=cost_weight_registration, 
-                aux_vars=[edge.relative_pose, gaussian_means_th],
-                name=f"COST_FUNCTION_LINE_PROCRSS__{str(edge.vertex_idx_i).zfill(6)}_{str(edge.vertex_idx_j).zfill(6)}"
-            )
-            self.objective.add(cost_fn_registration)
-            cost_fn_line_process = th.AutoDiffCostFunction(
-                optim_vars=[l_ij,], 
-                err_fn=error_fn_line_process, 
-                dim=1, 
-                cost_weight=cost_weight_line_process,
-                name=f"COST_FUNCTION_LINE_PROCRSS__{str(edge.vertex_idx_i).zfill(6)}_{str(edge.vertex_idx_j).zfill(6)}"
-            )
-            self.objective.add(cost_fn_line_process)
-        else:
-            raise NotImplementedError()
-
-    def _remove_loop_outlier(self, substring="LINE_PROCESS") -> bool:
-        """ Remove from objective false loops and all cost functions connect to them """
-        flag = False
-        for optim_key, optim_val in self.objective.optim_vars.items():
-            if substring in optim_key:
-                if optim_val.tensor < self.loop_inlier_threshold:
-                    flag = True
-                    print(f"Removing optimizaiton variable {optim_key} from objective.")
-                    cost_fns = self.objective.get_functions_connected_to_optim_var(optim_val)
-                    for cost_fn in cost_fns.copy():
-                        print(f"Removing cost function {cost_fn.name} from objective.")
-                        self.objective.erase(cost_fn.name)
-        return flag
-                    
-    def _optimize(self) -> th.OptimizerInfo:
+    def optimize(self) -> th.OptimizerInfo:
         optimizer = th.LevenbergMarquardt(
             objective=self.objective,
             max_iterations=self.optimization_max_iterations,
             step_size=self.optimization_step_size,
             linearization_cls=th.SparseLinearization,
             linear_solver_cls=th.CholmodSparseSolver,
-            #abs_err_tolerance=1e-9,
-            rel_err_tolerance=1e-4,
+            rel_err_tolerance=self.rel_err_tolerance,
             vectorize=True,
         )
         layer = th.TheseusLayer(optimizer)
         layer.to(self.device)
         with torch.no_grad():
+            print(f"Optimization, dealing with {self.objective.size_cost_functions()} cost functions")
             _, info = layer.forward(optimizer_kwargs={
                 "damping": self.damping, 
                 "track_best_solution": self.track_best_solution, 
@@ -167,137 +140,107 @@ class GaussianSLAMPoseGraph:
             })
         return info
 
-    def optimize_two_steps(self) -> th.OptimizerInfo:
-        """ optimization in two steps: 
-        1. optimize with initial guess of all optim variables (T_i, l_ij)
-        2. remove all l_ij < threshold, and all cost functions that are connected to them,
-           optimize again with optimized variables
-        """
-        print(f"First step optimization, dealing with {self.objective.size_cost_functions()} cost functions")
-        info = self._optimize()
-        has_loop_outlier = self._remove_loop_outlier("LINE_PROCESS")
-        if has_loop_outlier:
-            print(f"Second step optimization, dealing with {self.objective.size_cost_functions()} cost functions")
-            info = self._optimize()
-        return info
-
-    # TODO: 看看输入参数有没有在什么地方被改变, 删除占用内存过多的变量
     def create_odometry_constraint(
             self, 
+            current_gaussian_model: GaussianModel, 
+            last_gaussian_model: GaussianModel,
             new_submap_frame_ids: List,
-            estimated_c2ws: List,
-            xyz_last: torch.Tensor,
-            xyz_current: torch.Tensor, 
-            dataset: Type[BaseDataset],
+            estimated_c2ws: List, 
             cost_weight=1.0,
-            downsample_num=500,
         ) -> None:
-        """ create an odometry constraint between the last submap and the current submap, then add it into pose graph.
+        """ create an odometry constraint between the last submap and the current submap, and add it into pose graph.
         Each vertex is initialized as identity matrix, with name 'VERTEX_SE3__str(i).zfill(6)', where 'i' indicates it's 
         the i'th submap. The relative pose between adjacent submaps is also initialized to identity matrix. 
-        Args:
-            new_submap_frame_ids: a list that stores the global keyframe id for each submap
-            estimated_c2ws: a list that stores the estimated poses of each tracking frame
-            xyz_last, xyz_current: point cloud positions
-            dataset: the dataset that is working on
-            cost_weight: weight for this odometry constraint
-            downsample_num: downsample number
         """
-        last_ordinal = len(new_submap_frame_ids) - 2
-        last_submap_id = new_submap_frame_ids[-2]
-        last_submap_pose = estimated_c2ws[last_submap_id]
-        last_frustum_corners = compute_camera_frustum_corners(dataset[last_submap_id][2], last_submap_pose, dataset.intrinsics)
-        last_reused_pts_ids = compute_frustum_point_ids(xyz_last, last_frustum_corners, device=self.device)
-        if self.objective.has_optim_var(f"VERTEX_SE3__{str(last_ordinal).zfill(6)}"):
-            last_vertex = self.objective.get_optim_var(f"VERTEX_SE3__{str(last_ordinal).zfill(6)}")
+        last_submap_id = len(new_submap_frame_ids) - 2
+        last_submap_frame_id = new_submap_frame_ids[-2]
+        last_frustum_corners = compute_camera_frustum_corners(self.dataset[last_submap_frame_id][2], estimated_c2ws[last_submap_frame_id], self.dataset.intrinsics)
+        last_reused_pts_ids = compute_frustum_point_ids(last_gaussian_model.get_xyz(), last_frustum_corners, device=self.device)
+        if self.objective.has_optim_var(f"VERTEX_SE3__{str(last_submap_id).zfill(6)}"):
+            last_vertex = self.objective.get_optim_var(f"VERTEX_SE3__{str(last_submap_id).zfill(6)}")
         else:
-            last_vertex = th.SE3(tensor=torch.tile(torch.eye(3, 4), [1, 1, 1]), name=f"VERTEX_SE3__{str(last_ordinal).zfill(6)}")
+            last_vertex = th.SE3(tensor=torch.tile(torch.eye(3, 4), [1, 1, 1]), name=f"VERTEX_SE3__{str(last_submap_id).zfill(6)}")
 
-        current_ordinal = len(new_submap_frame_ids) - 1
-        current_submap_id = new_submap_frame_ids[-1]
-        current_submap_pose = estimated_c2ws[current_submap_id]
-        current_frustum_corners = compute_camera_frustum_corners(dataset[current_submap_id][2], current_submap_pose, dataset.intrinsics)
-        current_reused_pts_ids = compute_frustum_point_ids(xyz_current, current_frustum_corners, device=self.device)
-        if self.objective.has_optim_var(f"VERTEX_SE3__{str(current_ordinal).zfill(6)}"):
-            current_vertex = self.objective.get_optim_var(f"VERTEX_SE3__{str(current_ordinal).zfill(6)}")
+        current_submap_id = len(new_submap_frame_ids) - 1
+        current_submap_frame_id = new_submap_frame_ids[-1]
+        current_frustum_corners = compute_camera_frustum_corners(self.dataset[current_submap_frame_id][2], estimated_c2ws[current_submap_frame_id], self.dataset.intrinsics)
+        current_reused_pts_ids = compute_frustum_point_ids(current_gaussian_model.get_xyz(), current_frustum_corners, device=self.device)
+        if self.objective.has_optim_var(f"VERTEX_SE3__{str(current_submap_id).zfill(6)}"):
+            current_vertex = self.objective.get_optim_var(f"VERTEX_SE3__{str(current_submap_id).zfill(6)}")
         else:
-            current_vertex = th.SE3(tensor=torch.tile(torch.eye(3, 4), [1, 1, 1]), name=f"VERTEX_SE3__{str(current_ordinal).zfill(6)}")
+            current_vertex = th.SE3(tensor=torch.tile(torch.eye(3, 4), [1, 1, 1]), name=f"VERTEX_SE3__{str(current_submap_id).zfill(6)}")
 
-        matching_ids = match_gaussian_means(
-            xyz_last[last_reused_pts_ids], 
-            xyz_current[current_reused_pts_ids], 
+        match_idx_last, match_idx_current = match_gaussian_means(
+            last_gaussian_model.get_xyz()[last_reused_pts_ids], 
+            current_gaussian_model.get_xyz()[current_reused_pts_ids], 
             torch.eye(4), 
             self.center_matching_threshold
         )
-        downsample_ids = downsample(matching_ids, downsample_num)
-        odometry_edge = GaussianSLAMEdge(last_ordinal, current_ordinal, torch.eye(3, 4), cost_weight)
-        print(f"Building odometry constraint between submap_{last_ordinal} and submap{current_ordinal}")
-        self.add_odometry_edge(last_vertex, current_vertex, odometry_edge, xyz_last[last_reused_pts_ids][downsample_ids])
+        downsample_ids = downsample(match_idx_last, self.downsample_num)
+        odometry_edge = GaussianSLAMEdge(last_submap_id, current_submap_id, torch.eye(3, 4), cost_weight)
+        print(f"Building odometry constraint between submap_{last_submap_id} and submap{current_submap_id}")
+        self.add_edge(
+            last_vertex, current_vertex, odometry_edge, 
+            last_gaussian_model.get_xyz()[last_reused_pts_ids][match_idx_last][downsample_ids], 
+            last_gaussian_model.get_scaling()[last_reused_pts_ids][match_idx_last][downsample_ids], 
+            last_gaussian_model.get_rotation()[last_reused_pts_ids][match_idx_last][downsample_ids], 
+            SH2RGB(last_gaussian_model.get_features()[last_reused_pts_ids][match_idx_last][downsample_ids]).clamp(0, 1),
+            current_gaussian_model.get_xyz()[current_reused_pts_ids][match_idx_current][downsample_ids], 
+            SH2RGB(current_gaussian_model.get_features()[current_reused_pts_ids][match_idx_current][downsample_ids]).clamp(0, 1),
+        )
+        print(f"Current error metric = {self.objective.error_metric()}")
 
     def create_loop_constraint(
         self, 
-        loop_ids: List,
-        new_submap_frame_ids: List,
-        estimated_c2ws: List,
-        xyz_current: torch.Tensor, 
-        dataset: Type[BaseDataset],
+        current_gaussian_model: GaussianModel, 
+        loop_gaussian_model: GaussianModel,
+        loop_submap_id: List, 
+        new_submap_frame_ids: List, 
+        estimated_c2ws: torch.Tensor,
         cost_weight=1.0,
-        downsample_num=500,
     ) -> None:
         """ create a loop constraint between the current submap and a submap that forms a loop with the current one, then
         add it into pose graph. Each vertex is initialized as identity matrix, with name 'VERTEX_SE3__str(i).zfill(6)', 
-        where 'i' indicates it's the i'th submap. The relative pose between those submaps is calculated. 
-        Args:
-            loop_ids: a list that contains index of submaps that form a loop with the current submap
-            new_submap_frame_ids: a list that stores the global keyframe id for each submap
-            estimated_c2ws: a list that stores the estimated poses of each tracking frame
-            xyz_last, xyz_current: point cloud positions
-            dataset: the dataset that is working on
-            cost_weight: weight for this odometry constraint
-            downsample_num: downsample number
+        where 'i' indicates it's the i'th submap.
         """
-        # Note that vertex name is the submap ordinal (0, 1, 2, ...), not the keyframe id
-        current_ordinal = len(new_submap_frame_ids) - 1
-        current_submap_id = new_submap_frame_ids[-1]
-        current_submap_pose = estimated_c2ws[current_submap_id]
-        current_frustum_corners = compute_camera_frustum_corners(dataset[current_submap_id][2], current_submap_pose, dataset.intrinsics)
-        current_reused_pts_ids = compute_frustum_point_ids(xyz_current, current_frustum_corners, device=self.device)
-        if self.objective.has_optim_var(f"VERTEX_SE3__{str(current_ordinal).zfill(6)}"):
-            current_vertex = self.objective.get_aux_var(f"VERTEX_SE3__{str(current_ordinal).zfill(6)}")
+        current_submap_id = len(new_submap_frame_ids) - 1
+        current_submap_frame_id = new_submap_frame_ids[-1]
+        current_frustum_corners = compute_camera_frustum_corners(self.dataset[current_submap_frame_id][2], estimated_c2ws[current_submap_frame_id], self.dataset.intrinsics)
+        current_reused_pts_ids = compute_frustum_point_ids(current_gaussian_model.get_xyz(), current_frustum_corners, device=self.device)
+        if self.objective.has_optim_var(f"VERTEX_SE3__{str(current_submap_id).zfill(6)}"):
+            current_vertex = self.objective.get_aux_var(f"VERTEX_SE3__{str(current_submap_id).zfill(6)}")
         else:
-            current_vertex = th.SE3(tensor=torch.tile(torch.eye(3, 4), [1, 1, 1]), name=f"VERTEX_SE3__{str(current_ordinal).zfill(6)}")
+            current_vertex = th.SE3(tensor=torch.tile(torch.eye(3, 4), [1, 1, 1]), name=f"VERTEX_SE3__{str(current_submap_id).zfill(6)}")
         
-        for loop_ordinal in loop_ids:
-            loop_submap_id = new_submap_frame_ids[loop_ordinal]
-            loop_submap_pose = estimated_c2ws[loop_submap_id]
-            loop_frustum_corners = compute_camera_frustum_corners(dataset[loop_submap_id][2], loop_submap_pose, dataset.intrinsics)
-            loop_reused_pts_ids = compute_frustum_point_ids(xyz_loop, loop_frustum_corners, device=self.device)
-            if self.objective.has_optim_var(f"VERTEX_SE3__{str(loop_ordinal).zfill(6)}"):
-                loop_vertex = self.objective.get_optim_var(f"VERTEX_SE3__{str(loop_ordinal).zfill(6)}")
-            else:
-                loop_vertex = th.SE3(tensor=torch.tile(torch.eye(3, 4), [1, 1, 1]), name=f"VERTEX_SE3__{str(loop_ordinal).zfill(6)}")
-            loop_submap = load_gaussian_ckpt(loop_ordinal, ) # TODO
-            xyz_loop = loop_submap['gaussian_params']['xyz']
-
-            # TODO: type of poses?
-            if self.use_gt_relative_pose:
-                current_correction_pose_gt = np2torch(dataset[current_submap_id][-1] @ np.linalg.inv(current_submap_pose))
-                loop_correction_pose = np2torch(dataset[loop_submap_id][-1] @ np.linalg.inv(loop_submap_pose))
-                relative_pose_measurement = None
-            else:
-                relative_pose_measurement = point_cloud_registration(
-                    np2ptcloud(torch2np(xyz_loop)),
-                    np2ptcloud(torch2np(xyz_current))
-                ) # TODO: implementation
-            loop_edge = GaussianSLAMEdge(loop_ordinal, current_ordinal, relative_pose_measurement, cost_weight)
-            matching_ids = match_gaussian_means(
-                xyz_loop[loop_reused_pts_ids], 
-                xyz_current[current_reused_pts_ids], 
-                torch.eye(4), 
-                self.center_matching_threshold
-            )
-            del xyz_loop
-            # TODO: if too few matching points, pass this loop?
-            downsample_ids = downsample(matching_ids, downsample_num)
-            loop_edge = GaussianSLAMEdge(loop_ordinal, current_ordinal, relative_pose_measurement, cost_weight)
-            self.add_loop_closure_edge(current_vertex, loop_vertex, loop_edge, xyz_current[current_reused_pts_ids][downsample_ids])
+        loop_submap_frame_id = new_submap_frame_ids[loop_submap_id]
+        loop_frustum_corners = compute_camera_frustum_corners(self.dataset[loop_submap_frame_id][2], estimated_c2ws[loop_submap_frame_id], self.dataset.intrinsics)
+        loop_reused_pts_ids = compute_frustum_point_ids(loop_gaussian_model.get_xyz(), loop_frustum_corners, device=self.device)
+        if loop_submap_id == 0:
+            loop_vertex = self.objective.get_aux_var(f"VERTEX_SE3__{str(loop_submap_id).zfill(6)}")
+        else:
+            loop_vertex = self.objective.get_optim_var(f"VERTEX_SE3__{str(loop_submap_id).zfill(6)}")
+            
+        if self.use_gt_relative_pose:
+            current_correction_pose_gt = np2torch(self.dataset[current_submap_frame_id][-1]) @ estimated_c2ws[current_submap_frame_id].inverse()
+            loop_correction_pose_gt = np2torch(self.dataset[loop_submap_frame_id][-1]) @ estimated_c2ws[loop_submap_frame_id].inverse()
+            # relative_pose = current_correction_pose_gt @ loop_correction_pose_gt.inverse()
+            relative_pose = current_correction_pose_gt.inverse() @ loop_correction_pose_gt
+        else:
+            raise NotImplementedError()
+        match_idx_loop, match_idx_current = match_gaussian_means(
+            loop_gaussian_model.get_xyz()[loop_reused_pts_ids], # TODO: should I detach them from the graph?
+            current_gaussian_model.get_xyz()[current_reused_pts_ids], 
+            relative_pose, 
+            self.center_matching_threshold
+        )
+        loop_edge = GaussianSLAMEdge(loop_submap_id, current_submap_id, relative_pose, cost_weight)
+        print(f"Building loop constraint between submap_{loop_submap_id} and submap{current_submap_id}")
+        self.add_edge(
+            loop_vertex, current_vertex, loop_edge, 
+            loop_gaussian_model.get_xyz()[loop_reused_pts_ids][match_idx_loop], 
+            loop_gaussian_model.get_scaling()[loop_reused_pts_ids][match_idx_loop], 
+            loop_gaussian_model.get_rotation()[loop_reused_pts_ids][match_idx_loop], 
+            SH2RGB(loop_gaussian_model.get_features()[loop_reused_pts_ids][match_idx_loop]).clamp(0, 1),
+            current_gaussian_model.get_xyz()[current_reused_pts_ids][match_idx_current], 
+            SH2RGB(current_gaussian_model.get_features()[current_reused_pts_ids][match_idx_current]).clamp(0, 1)
+        )

@@ -179,34 +179,24 @@ def strip_symmetric(sym):
 
 
 def build_rotation(r):
+    # batch operation supported
+    q = F.normalize(r, p=2, dim=-1)
+    w = q[..., 0]
+    x = q[..., 1]
+    y = q[..., 2]
+    z = q[..., 3]
 
-    q = F.normalize(r, p=2, dim=1)
-    R = torch.zeros((q.size(0), 3, 3), device='cuda')
-
-    r = q[:, 0]
-    x = q[:, 1]
-    y = q[:, 2]
-    z = q[:, 3]
-
-    R[:, 0, 0] = 1 - 2 * (y*y + z*z)
-    R[:, 0, 1] = 2 * (x*y - r*z)
-    R[:, 0, 2] = 2 * (x*z + r*y)
-    R[:, 1, 0] = 2 * (x*y + r*z)
-    R[:, 1, 1] = 1 - 2 * (x*x + z*z)
-    R[:, 1, 2] = 2 * (y*z - r*x)
-    R[:, 2, 0] = 2 * (x*z - r*y)
-    R[:, 2, 1] = 2 * (y*z + r*x)
-    R[:, 2, 2] = 1 - 2 * (x*x + y*y)
+    R = torch.stack(
+        [1 - 2 * (y*y + z*z), 2 * (x*y - w*z), 2 * (x*z + w*y), 
+         2 * (x*y + w*z), 1 - 2 * (x*x + z*z), 2 * (y*z - w*x),
+         2 * (x*z - w*y), 2 * (y*z + w*x), 1 - 2 * (x*x + y*y)], dim=-1
+        ).view(*q.shape[:-1], 3, 3).to('cuda')
     return R
 
 
 def build_scaling_rotation(s, r):
-    L = torch.zeros((s.shape[0], 3, 3), dtype=torch.float, device="cuda")
+    # batch operation supported
+    L = torch.diag_embed(s).to('cuda')
     R = build_rotation(r)
-
-    L[:, 0, 0] = s[:, 0]
-    L[:, 1, 1] = s[:, 1]
-    L[:, 2, 2] = s[:, 2]
-
     L = R @ L
     return L
