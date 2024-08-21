@@ -36,16 +36,19 @@ tracking:
 cam:
   crop_edge: 16
   depth_scale: 5000.0
-#pose_graph:
-  #loop_inlier_threshold: 0.25
-  #correspondence_factor: 0.2
-  #center_matching_threshold: 0.05
-  #optimization_max_iterations: 1000
-  #optimization_step_size: 0.005
-  #damping: 0.1
-  #track_best_solution: True
-  #verbose: False
-#loop_closure:
-  #netvlad_checkpoint_path: vgg16_netvlad_checkpoint/checkpoints/checkpoint.pth.tar
-  #encoder_name: "vgg16"
-  #k_neighbours: 4
+pose_graph:
+  use_gt_relative_pose: True
+  opacity_threshold: 0.9
+  rel_err_tolerance: 0.0001
+  ownsample_number: 500
+  loop_inlier_threshold: 0.25
+  center_matching_threshold: 0.02
+  optimization_max_iterations: 200
+  optimization_step_size: 0.005
+  damping: 0.01
+  track_best_solution: True
+  verbose: True
+loop_closure:
+  netvlad_checkpoint_path: /vgg16_netvlad_checkpoint/checkpoints/checkpoint.pth.tar
+  encoder_name: "vgg16"
+  k_neighbours: 3
