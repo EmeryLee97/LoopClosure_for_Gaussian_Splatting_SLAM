@@ -156,8 +156,10 @@ class GaussianSLAMPoseGraph:
         last_frustum_corners = compute_camera_frustum_corners(self.dataset[last_submap_frame_id][2], estimated_c2ws[last_submap_frame_id], self.dataset.intrinsics)
         last_reused_pts_ids = compute_frustum_point_ids(last_gaussian_model.get_xyz(), last_frustum_corners, device=self.device)
         if self.objective.has_optim_var(f"VERTEX_SE3__{str(last_submap_id).zfill(6)}"):
+            print(f"Loading vertex{last_submap_id} from objective")
             last_vertex = self.objective.get_optim_var(f"VERTEX_SE3__{str(last_submap_id).zfill(6)}")
         else:
+            print(f"Constructing vertex_{last_submap_id}")
             last_vertex = th.SE3(tensor=torch.tile(torch.eye(3, 4), [1, 1, 1]), name=f"VERTEX_SE3__{str(last_submap_id).zfill(6)}")
 
         current_submap_id = len(new_submap_frame_ids) - 1
@@ -165,8 +167,10 @@ class GaussianSLAMPoseGraph:
         current_frustum_corners = compute_camera_frustum_corners(self.dataset[current_submap_frame_id][2], estimated_c2ws[current_submap_frame_id], self.dataset.intrinsics)
         current_reused_pts_ids = compute_frustum_point_ids(current_gaussian_model.get_xyz(), current_frustum_corners, device=self.device)
         if self.objective.has_optim_var(f"VERTEX_SE3__{str(current_submap_id).zfill(6)}"):
+            print(f"Loading vertex{current_submap_id} from objective")
             current_vertex = self.objective.get_optim_var(f"VERTEX_SE3__{str(current_submap_id).zfill(6)}")
         else:
+            print(f"Constructing vertex_{current_submap_id}")
             current_vertex = th.SE3(tensor=torch.tile(torch.eye(3, 4), [1, 1, 1]), name=f"VERTEX_SE3__{str(current_submap_id).zfill(6)}")
 
         match_idx_last, match_idx_current = match_gaussian_means(
@@ -177,7 +181,7 @@ class GaussianSLAMPoseGraph:
         )
         downsample_ids = downsample(match_idx_last, self.downsample_num)
         odometry_edge = GaussianSLAMEdge(last_submap_id, current_submap_id, torch.eye(3, 4), cost_weight)
-        print(f"Building odometry constraint between submap_{last_submap_id} and submap{current_submap_id}")
+        print(f"Building odometry constraint between submap_{last_submap_id} and submap_{current_submap_id}")
         self.add_edge(
             last_vertex, current_vertex, odometry_edge, 
             last_gaussian_model.get_xyz()[last_reused_pts_ids][match_idx_last][downsample_ids], 
