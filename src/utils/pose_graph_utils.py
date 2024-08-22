@@ -83,10 +83,10 @@ def error_fn_dense_gaussian_alignment(optim_vars, aux_vars) -> torch.Tensor:
     """ This error function calculates the difference between two Gaussian clouds, considering their mean position,
         scaling, rotation and color.
     """
-    if len(optim_vars) == 1 and len(aux_vars) == 8:
+    if len(optim_vars) == 1 and len(aux_vars) == 7:
         pose_j, = optim_vars
         pose_i, gaussian_xyz_i, gaussian_scaling_i, gaussian_rotation_i, gaussian_color_i, gaussian_xyz_j, gaussian_color_j = aux_vars
-    elif len(optim_vars) == 2 and len(aux_vars) == 7:
+    elif len(optim_vars) == 2 and len(aux_vars) == 6:
         pose_i, pose_j = optim_vars
         gaussian_xyz_i, gaussian_scaling_i, gaussian_rotation_i, gaussian_color_i, gaussian_xyz_j, gaussian_color_j = aux_vars
     else:
