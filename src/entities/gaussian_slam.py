@@ -196,7 +196,8 @@ class GaussianSLAM(object):
                 save_dict_to_ckpt(self.estimated_c2ws[:frame_id + 1], "estimated_c2w.ckpt", directory=self.output_path)
                 # self.submap += 1 = happens here, put everything before
                 gaussian_model = self.start_new_submap(frame_id, gaussian_model)
-                self.local_feature_index.reset()
+                if self.submap_id > 1:
+                    self.local_feature_index.reset()
 
             if frame_id in self.mapping_frame_ids:
                 print("\nMapping frame", frame_id)
