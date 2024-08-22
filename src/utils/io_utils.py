@@ -1,12 +1,16 @@
 import json
 import os
 from pathlib import Path
-from typing import Union
+from typing import Union, Tuple, Dict
 
 import open3d as o3d
+import numpy as np
 import torch
+import torch.nn.functional as F
 import wandb
 import yaml
+
+from src.entities.gaussian_model import GaussianModel
 
 
 def mkdir_decorator(func):
@@ -147,3 +151,33 @@ def log_metrics_to_wandb(json_files: list, output_path: str, section: str = "Eva
             prefixed_metrics = {
                 f"{section}/{key}": value for key, value in metrics.items()}
             wandb.log(prefixed_metrics)
+
+
+def load_submap_ckpt(submap_id: int, output_path: str, checkpoint_dir=None, opacity_threshold=0, device='cuda') -> Dict:
+    """ Load gaussian parameters from saved sabmap with given checkpoint path """
+    # In our case, submaps are stored under self.output_path / "submaps"
+    if checkpoint_dir is None:
+        checkpoint_dir = Path(output_path, "submaps")
+    checkpoint_path = Path(checkpoint_dir, str(submap_id).zfill(6)+'.ckpt')
+    submap = torch.load(checkpoint_path, map_location=device)
+    opacity_mask = (submap["gaussian_params"]["opacity"] >= opacity_threshold).squeeze()  
+    C0 = 0.28209479177387814
+    submap["gaussian_params"]["xyz"] = submap["gaussian_params"]["xyz"][opacity_mask]
+    submap["gaussian_params"]["scaling"] = torch.exp(submap["gaussian_params"]["scaling"][opacity_mask])
+    submap["gaussian_params"]["rotation"] = F.normalize(submap["gaussian_params"]["rotation"][opacity_mask], p=2, dim=-1)
+    submap["gaussian_params"]["features_dc"] = (submap["gaussian_params"]["features_dc"][opacity_mask] * C0 + 0.5).clamp(0, 1).squeeze()
+    return submap
+
+
+def load_gaussian_from_submap_ckpt(
+        submap_id: int, output_path: str, training_args, checkpoint_dir=None, device='cuda'
+    ) -> GaussianModel:
+    if checkpoint_dir is None:
+        checkpoint_dir = Path(output_path, "submaps")
+    checkpoint_path = Path(checkpoint_dir, str(submap_id).zfill(6)+'.ckpt')
+    submap = torch.load(checkpoint_path, map_location=device)
+
+    gaussian_model = GaussianModel(0)
+    gaussian_model.restore_from_params(submap["gaussian_params"], training_args)
+    return gaussian_model
+

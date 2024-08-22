@@ -1,6 +1,7 @@
 import random
 from typing import List, Union, Tuple
 
+import numpy as np
 import torch
 import open3d as o3d
 import theseus as th
@@ -102,7 +103,37 @@ def error_fn_dense_gaussian_alignment(optim_vars, aux_vars) -> torch.Tensor:
     return modified_sigmoid(color_diff, k=6) * h_distance.sqrt()
 
 
+def preprocess_point_cloud(pcd: o3d.geometry.PointCloud, voxel_size=0.05) -> o3d.geometry.PointCloud:
+    """ Downsample the given point cloud, estimate normals, then compute a FPFH feature for each point
+    Args:
+        pcd: input point cloud
+        voxel_size: size of voxels, inside which only one point will be sampled
+    Return:
+        pcd_down: down-sampled point cloud
+    """
+    pcd_down = pcd.voxel_down_sample(voxel_size)
+    radius_normal = voxel_size * 2
+    pcd_down.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=30))
+    return pcd_down
 
+
+def compute_relative_pose(
+        source_pcl: o3d.geometry.PointCloud,
+        target_pcl: o3d.geometry.PointCloud,
+        current_transformation: np.ndarray=None,
+        voxel_size=0.05,
+        distance_threshold=0.05
+    ) -> np.ndarray:
+    """ Caluculate the relative pose between two cameras using mean positions of Gaussian clouds
+    inside the camera frustum, following a corse-to-fine process.
+    """
+    source_down = preprocess_point_cloud(source_pcl, voxel_size)
+    target_down = preprocess_point_cloud(target_pcl, voxel_size)
+    # refine the alignment with Point-to-plane ICP
+    icp_pose = o3d.pipelines.registration.registration_icp(
+        source_down, target_down, distance_threshold, current_transformation,
+        o3d.pipelines.registration.TransformationEstimationPointToPlane())
+    return icp_pose.transformation, np.asarray(icp_pose.correspondence_set)
 
 
 
@@ -231,5 +262,6 @@ def quaternion_multiplication(q1: torch.Tensor, q2: torch.Tensor):
     z = q1_w * q2_z + q1_x * q2_y - q1_y * q2_x + q1_z * q2_w
 
     return torch.stack((w, x, y, z), dim=-1)
+
 
 # th.OptimizerInfo.best_solution

@@ -223,8 +223,7 @@ class GaussianSLAMPoseGraph:
         if self.use_gt_relative_pose:
             current_correction_pose_gt = np2torch(self.dataset[current_submap_frame_id][-1]) @ estimated_c2ws[current_submap_frame_id].inverse()
             loop_correction_pose_gt = np2torch(self.dataset[loop_submap_frame_id][-1]) @ estimated_c2ws[loop_submap_frame_id].inverse()
-            # relative_pose = current_correction_pose_gt @ loop_correction_pose_gt.inverse()
-            relative_pose = current_correction_pose_gt.inverse() @ loop_correction_pose_gt
+            relative_pose = current_correction_pose_gt @ loop_correction_pose_gt.inverse()
         else:
             raise NotImplementedError()
         match_idx_loop, match_idx_current = match_gaussian_means(
