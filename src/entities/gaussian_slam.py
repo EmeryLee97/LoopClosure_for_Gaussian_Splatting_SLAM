@@ -71,7 +71,7 @@ class GaussianSLAM(object):
             self.loop_closure_detector = LoopClosureDetector(config["loop_closure"])
             # stores the netvlad features of local keyframes in each submap
             self.local_feature_index = LoopClosureDetector(config["loop_closure"]) 
-            self.pose_graph = GaussianSLAMPoseGraph(config["pose_graph"])
+            self.pose_graph = GaussianSLAMPoseGraph(config["pose_graph"], self.dataset, self.logger)
             print('Loop closure detector config')  
             pprint.PrettyPrinter().pprint(config["loop_closure"])
             print('Pose graph config')
