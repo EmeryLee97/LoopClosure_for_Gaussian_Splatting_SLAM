@@ -172,7 +172,7 @@ class GaussianSLAMPoseGraph:
         match_idx_last, match_idx_current = match_gaussian_means(
             last_gaussian_model.get_xyz()[last_reused_pts_ids], 
             current_gaussian_model.get_xyz()[current_reused_pts_ids], 
-            torch.eye(4), 
+            torch.eye(4, device="cuda"), 
             self.center_matching_threshold
         )
         downsample_ids = downsample(match_idx_last, self.downsample_num)
