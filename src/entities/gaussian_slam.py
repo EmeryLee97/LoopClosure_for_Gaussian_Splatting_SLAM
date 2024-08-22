@@ -9,7 +9,6 @@ from pathlib import Path
 
 import numpy as np
 import torch
-import theseus as th
 
 from src.entities.arguments import OptimizationParams
 from src.entities.datasets import get_dataset
@@ -17,14 +16,14 @@ from src.entities.gaussian_model import GaussianModel
 from src.entities.mapper import Mapper
 from src.entities.tracker import Tracker
 from src.entities.logger import Logger
+from src.entities.loop_closure import LoopClosureDetector
+from src.entities.pose_graph import GaussianSLAMPoseGraph, GaussianSLAMEdge
 
-from src.utils.pose_graph_utils import GaussianSLAMPoseGraph, GaussianSLAMEdge, compute_relative_pose
-from src.utils.loop_closure_utils import LoopClosureDetector
 from src.utils.io_utils import save_dict_to_ckpt, save_dict_to_yaml
 from src.utils.mapper_utils import exceeds_motion_thresholds
 from src.utils.utils import np2torch, setup_seed, torch2np, get_id_from_string
 from src.utils.vis_utils import *  # noqa - needed for debugging
-
+from src.utils.io_utils import load_submap_ckpt, load_gaussian_from_submap_ckpt
 
 class GaussianSLAM(object):
 
@@ -37,6 +36,7 @@ class GaussianSLAM(object):
         self.scene_name = config["data"]["scene_name"]
         self.dataset_name = config["dataset_name"]
         self.dataset = get_dataset(config["dataset_name"])({**config["data"], **config["cam"]})
+        self.optimize_with_loop_closure = config["optimize_with_loop_closure"]
 
         n_frames = len(self.dataset)
         frame_ids = list(range(n_frames))
@@ -67,9 +67,10 @@ class GaussianSLAM(object):
         print('Mapping config')
         pprint.PrettyPrinter().pprint(config["mapping"])      
 
-        self.optimize_with_loop_closure = config["optimize_with_loop_closure"]
         if self.optimize_with_loop_closure:
             self.loop_closure_detector = LoopClosureDetector(config["loop_closure"])
+            # stores the netvlad features of local keyframes in each submap
+            self.local_feature_index = LoopClosureDetector(config["loop_closure"]) 
             self.pose_graph = GaussianSLAMPoseGraph(config["pose_graph"])
             print('Loop closure detector config')  
             pprint.PrettyPrinter().pprint(config["loop_closure"])
@@ -118,6 +119,7 @@ class GaussianSLAM(object):
         Returns:
             A new, reset GaussianModel instance for the new submap.
         """
+        self.local_feature_index.reset()
         # save the current sub-map as check point
         gaussian_params = gaussian_model.capture_dict()
         submap_ckpt_name = str(self.submap_id).zfill(6)
@@ -138,56 +140,45 @@ class GaussianSLAM(object):
             self.mapping_frame_ids.append(frame_id)
         self.submap_id += 1
         return gaussian_model
-    
-    # -----------------------------------------------------------
-    
-    
 
-    def pose_graph_optimization(self, next_submap_id: int, gaussian_model_current: GaussianModel, cost_weight: float) -> None:
+    def pose_graph_optimization(self, current_gaussian_model, odometry_weight=1.0, loop_weight=1.0) -> None:
         """ When a submap is finished, pgo should be trigered in 3 steps:
         1. add odometry constraint between the current and the last global keyframes to pose graph
         2. add loop constraint between the current and several past global keyframes to pose graph
-           a. detect k nearest rgb frames (except for the last one)
-           b. calculate relative poses between the current global keyframes and those detected ones
-           c. add these loop constraints to pose graph
         3. optimize the pose graph with LM algorithm
         """
-        current_submap_id = self.new_submap_frame_ids[-1]
-        current_submap_rgb = self.dataset[current_submap_id][1]
-        # For the first submap, only add rgb image to faiss index
-        if len(self.new_submap_frame_ids) == 1:
-            self.loop_closure_detector.add_to_index(np2torch(current_submap_rgb, 'cuda'))
-        # For the second submap, add odometry constraint to pose graph, add rgb image to faiss index
-        elif len(self.new_submap_frame_ids) == 2:
-            self.create_odometry_constraint(gaussian_model_current, cost_weight)
-            self.loop_closure_detector.add_to_index(np2torch(current_submap_rgb, 'cuda'))
-        # For the other submaps, add odometry and loop constraints to pose graph, add rgb images to faiss index
-        else:
-            self.create_odometry_constraint(gaussian_model_current, cost_weight)
-            self.create_loop_constraint(gaussian_model_current, cost_weight)
-            optimize_info = self.pose_graph.optimize_two_steps()  
-            best_solution = optimize_info.best_solution
+        netvlad_feature = self.loop_closure_detector.get_netvlad_feature(self.dataset[self.new_submap_frame_ids[self.submap_id]][1])
+        if self.submap_id > 0:
+            last_gaussian_model = load_gaussian_from_submap_ckpt(self.submap_id-1, self.output_path, self.opt)
+            self.pose_graph.create_odometry_constraint(
+                current_gaussian_model, last_gaussian_model, self.new_submap_frame_ids, self.estimated_c2ws, odometry_weight
+            )
+            if self.submap_id > 1:
+                min_score = self.local_feature_index.get_min_score(netvlad_feature=netvlad_feature)
+                print(f"Minimum score of submap_{self.submap_id} = min_score")
+                self.local_feature_index.reset()
 
-            correct_mat = best_solution[f"VERTEX_SE3__000000"].inverse()
-            for pose_key, pose_val in best_solution.items():
-                if "VERTEX_SE3" in pose_key:
-                    submap_id = get_id_from_string(pose_val)
-                    submap_index = self.new_submap_frame_ids.index(submap_id)
-                    if submap_id == self.new_submap_frame_ids[-1]: # if is the current submap
-                        last_frame_id = next_submap_id
-                    else:
-                        last_frame_id = self.new_submap_frame_ids[submap_index+1]
+                loop_idx_list = self.loop_closure_detector.detect_knn(netvlad_feature=netvlad_feature, filter_threshold=min_score)
+                for loop_idx in loop_idx_list:
+                    loop_gaussian_model = load_gaussian_from_submap_ckpt(loop_idx, self.output_path, self.opt)
+                    self.pose_graph.create_loop_constraint(
+                        current_gaussian_model, loop_gaussian_model, self.new_submap_frame_ids, self.estimated_c2ws, loop_weight
+                    )
+                if len(loop_idx_list) != 0:
+                    optimize_info = self.pose_graph.optimize()  
+                    best_solution = optimize_info.best_solution
+                    for pose_key, pose_val in best_solution.items():
+                        # TODO: correct poses and gaussians
+                        pass
+        self.loop_closure_detector.add_to_index(netvlad_feature=netvlad_feature)
 
-                    for frame_id in range(submap_id, last_frame_id):
-                        self.estimated_c2ws[frame_id] = correct_mat @ self.estimated_c2ws[frame_id]
-                    
+
     def run(self) -> None:
         """ Starts the main program flow for Gaussian-SLAM, including tracking and mapping. """
         setup_seed(self.config["seed"])
         gaussian_model = GaussianModel(0)
         gaussian_model.training_setup(self.opt)
         self.submap_id = 0
-        #self.loop_closure_detector.add_to_index(self.dataset[0][1])
 
         for frame_id in range(len(self.dataset)):
 
@@ -201,11 +192,11 @@ class GaussianSLAM(object):
 
             # Reinitialize gaussian model for new segment
             if self.should_start_new_submap(frame_id):
-                #if self.optimize_with_loop_closure:
-                   #print(f"Optimizing with loop closure, currently {len(self.new_submap_frame_ids)} submaps.")
-                    #self.pose_graph_optimization(frame_id, gaussian_model, 1.0)
-                    
+                """ loop closure detection, pose graph optimizaiton, correct the poses and gaussians, reset the faiss index """
+                if self.optimize_with_loop_closure:
+                    self.pose_graph_optimization(gaussian_model)
                 save_dict_to_ckpt(self.estimated_c2ws[:frame_id + 1], "estimated_c2w.ckpt", directory=self.output_path)
+                # self.submap += 1 = happens here, put everything before
                 gaussian_model = self.start_new_submap(frame_id, gaussian_model)
 
             if frame_id in self.mapping_frame_ids:
@@ -220,5 +211,10 @@ class GaussianSLAM(object):
                     "keyframe_id": len(self.keyframes_info.keys()),
                     "opt_dict": opt_dict
                 }
+                # add the current local keyframe info the local faiss index
+                if self.submap_id > 1:
+                    self.local_feature_index.add_to_index(self.dataset[frame_id][1])
+
+        self.pose_graph_optimization(gaussian_model)
         save_dict_to_ckpt(self.estimated_c2ws[:frame_id + 1], "estimated_c2w.ckpt", directory=self.output_path)
 
