@@ -119,7 +119,6 @@ class GaussianSLAM(object):
         Returns:
             A new, reset GaussianModel instance for the new submap.
         """
-        self.local_feature_index.reset()
         # save the current sub-map as check point
         gaussian_params = gaussian_model.capture_dict()
         submap_ckpt_name = str(self.submap_id).zfill(6)
@@ -156,7 +155,6 @@ class GaussianSLAM(object):
             if self.submap_id > 1:
                 min_score = self.local_feature_index.get_min_score(netvlad_feature=netvlad_feature)
                 print(f"Minimum score of submap_{self.submap_id} = min_score")
-                self.local_feature_index.reset()
 
                 loop_idx_list = self.loop_closure_detector.detect_knn(netvlad_feature=netvlad_feature, filter_threshold=min_score)
                 for loop_idx in loop_idx_list:
@@ -198,6 +196,7 @@ class GaussianSLAM(object):
                 save_dict_to_ckpt(self.estimated_c2ws[:frame_id + 1], "estimated_c2w.ckpt", directory=self.output_path)
                 # self.submap += 1 = happens here, put everything before
                 gaussian_model = self.start_new_submap(frame_id, gaussian_model)
+                self.local_feature_index.reset()
 
             if frame_id in self.mapping_frame_ids:
                 print("\nMapping frame", frame_id)
