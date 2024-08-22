@@ -29,7 +29,7 @@ class GaussianSLAMEdge:
         self.device = device
         self.vertex_idx_i = vertex_idx_i
         self.vertex_idx_j = vertex_idx_j
-        self.relative_pose = relative_pose[:3, :].unsqueeze(0), 
+        self.relative_pose = relative_pose[:3, :].unsqueeze(0)
         self.relative_pose.to(self.device)
         self.cost_weight = th.ScaleCostWeight(
             scale=cost_weight,
