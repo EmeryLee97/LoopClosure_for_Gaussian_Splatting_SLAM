@@ -60,7 +60,6 @@ class GaussianSLAMPoseGraph:
         self.downsample_num = config["downsample_number"]
         self.optimization_max_iterations = config["optimization_max_iterations"]
         self.optimization_step_size = config["optimization_step_size"]
-        self.correspondence_factor = config["correspondence_factor"]
         self.rel_err_tolerance = config["rel_err_tolerance"]
         self.damping = config["damping"]
         self.track_best_solution = config["track_best_solution"]

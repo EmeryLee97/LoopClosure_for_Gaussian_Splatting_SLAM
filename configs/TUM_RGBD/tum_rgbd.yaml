@@ -39,12 +39,11 @@ cam:
 pose_graph:
   use_gt_relative_pose: True
   opacity_threshold: 0.9
-  rel_err_tolerance: 0.0001
-  downsample_number: 500
-  loop_inlier_threshold: 0.25
   center_matching_threshold: 0.02
+  downsample_number: 500
   optimization_max_iterations: 200
-  optimization_step_size: 0.005
+  optimization_step_size: 0.01
+  rel_err_tolerance: 0.0001
   damping: 0.01
   track_best_solution: True
   verbose: True
