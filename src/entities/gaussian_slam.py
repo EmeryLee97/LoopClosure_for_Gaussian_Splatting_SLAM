@@ -154,9 +154,9 @@ class GaussianSLAM(object):
             )
             if self.submap_id > 1:
                 min_score = self.local_feature_index.get_min_score(netvlad_feature=netvlad_feature)
-                print(f"Minimum score of submap_{self.submap_id} = min_score")
+                print(f"Minimum score of submap_{self.submap_id} = {min_score}")
                 self.local_feature_index.reset()
-                loop_idx_list = self.loop_closure_detector.detect_knn(netvlad_feature=netvlad_feature, filter_threshold=min_score)
+                _, loop_idx_list = self.loop_closure_detector.detect_knn(netvlad_feature=netvlad_feature, filter_threshold=min_score)
                 for loop_idx in loop_idx_list:
                     loop_gaussian_model = load_gaussian_from_submap_ckpt(loop_idx, self.output_path, self.opt)
                     self.pose_graph.create_loop_constraint(
