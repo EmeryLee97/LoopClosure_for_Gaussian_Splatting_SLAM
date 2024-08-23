@@ -160,7 +160,7 @@ class GaussianSLAM(object):
                 for loop_idx in loop_idx_list:
                     loop_gaussian_model = load_gaussian_from_submap_ckpt(loop_idx, self.output_path, self.opt)
                     self.pose_graph.create_loop_constraint(
-                        current_gaussian_model, loop_gaussian_model, self.new_submap_frame_ids, self.estimated_c2ws, loop_weight
+                        current_gaussian_model, loop_gaussian_model, loop_idx, self.new_submap_frame_ids, self.estimated_c2ws, loop_weight
                     )
                 if len(loop_idx_list) != 0:
                     optimize_info = self.pose_graph.optimize()  

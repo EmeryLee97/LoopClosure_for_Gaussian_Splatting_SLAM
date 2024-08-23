@@ -197,7 +197,7 @@ class GaussianSLAMPoseGraph:
         self, 
         current_gaussian_model: GaussianModel, 
         loop_gaussian_model: GaussianModel,
-        loop_submap_id: List, 
+        loop_submap_id: int, 
         new_submap_frame_ids: List, 
         estimated_c2ws: torch.Tensor,
         cost_weight=1.0,
