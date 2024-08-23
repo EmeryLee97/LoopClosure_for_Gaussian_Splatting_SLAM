@@ -97,8 +97,8 @@ class GaussianSLAMPoseGraph:
 
         # vertex_0 should not be optimzied
         if edge.vertex_idx_i == 0:
-            optim_vars = [vertex_i, ]
-            aux_vars = [vertex_j, gaussian_xyz_i_th, gaussian_scaling_i_th, gaussian_rotation_i_th, 
+            optim_vars = [vertex_j, ]
+            aux_vars = [vertex_i, gaussian_xyz_i_th, gaussian_scaling_i_th, gaussian_rotation_i_th, 
                         gaussian_color_i_th, gaussian_xyz_j_th, gaussian_color_j_th]
         else:
             optim_vars = [vertex_i, vertex_j]
