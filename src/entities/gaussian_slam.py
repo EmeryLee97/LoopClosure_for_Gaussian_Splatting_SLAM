@@ -146,6 +146,7 @@ class GaussianSLAM(object):
         2. add loop constraint between the current and several past global keyframes to pose graph
         3. optimize the pose graph with LM algorithm
         """
+        print(f"optimizing pose graph, current submap_id = {self.submap_id}")
         netvlad_feature = self.loop_closure_detector.get_netvlad_feature(self.dataset[self.new_submap_frame_ids[self.submap_id]][1])
         if self.submap_id > 0:
             last_gaussian_model = load_gaussian_from_submap_ckpt(self.submap_id-1, self.output_path, self.opt)
