@@ -78,6 +78,12 @@ class GaussianSLAMPoseGraph:
             gaussian_color_j: torch.Tensor,
         ) -> None:
         """ add an odometry edge or loop edge to the objective """
+        print(f"gaussian_xyz_i shape = {gaussian_xyz_i.shape}")
+        print(f"gaussian_scaling_i shape = {gaussian_scaling_i.shape}")
+        print(f"gaussian_rotation_i shape = {gaussian_rotation_i.shape}")
+        print(f"gaussian_color_i shape = {gaussian_color_i.shape}")
+        print(f"gaussian_xyz_j shape = {gaussian_xyz_j.shape}")
+        print(f"gaussian_color_j shape = {gaussian_color_j.shape}")
         num_matches = gaussian_xyz_i.shape[0]
         gaussian_xyz_i_th = th.Variable(tensor=gaussian_xyz_i.unsqueeze(0)) # (1, num_gs, 3)
         gaussian_scaling_i_th = th.Variable(tensor=gaussian_scaling_i.unsqueeze(0)) # (1, num_gs, 3)
