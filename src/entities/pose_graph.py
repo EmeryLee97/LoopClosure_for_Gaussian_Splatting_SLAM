@@ -212,7 +212,7 @@ class GaussianSLAMPoseGraph:
         current_reused_pts_ids = compute_frustum_point_ids(current_gaussian_model.get_xyz(), current_frustum_corners, device=self.device)
         if self.objective.has_optim_var(f"VERTEX_SE3__{str(current_submap_id).zfill(6)}"):
             print(f"Loading vertex{current_submap_id} from objective")
-            current_vertex = self.objective.has_optim_var(f"VERTEX_SE3__{str(current_submap_id).zfill(6)}")
+            current_vertex = self.objective.get_optim_var(f"VERTEX_SE3__{str(current_submap_id).zfill(6)}")
         else:
             print(f"Constructing vertex_{current_submap_id}")
             current_vertex = th.SE3(tensor=torch.tile(torch.eye(3, 4), [1, 1, 1]), name=f"VERTEX_SE3__{str(current_submap_id).zfill(6)}")
