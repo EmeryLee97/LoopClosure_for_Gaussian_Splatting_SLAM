@@ -15,7 +15,7 @@ from src.utils.gaussian_model_utils import build_scaling_rotation, build_rotatio
 def downsample(container, num_samples: int):
     """ downsample elements inside a container with a given number """
     num_before = len(container)
-    print(f"Trying to downsample {num_samples} points.")
+    print(f"Trying to downsample {num_samples} points from {num_before} points.")
     if num_before <= num_samples:
         return list(range(0, num_before))
     else:
@@ -39,7 +39,6 @@ def match_gaussian_means(pts_1: torch.Tensor, pts_2: torch.Tensor, transformatio
         if query_idx[i] != pts_2.shape[0]:
             res_list_1.append(i)
             res_list_2.append(query_idx[i])
-    print(f'{len(res_list_1)} correspondences are found before adding to pose graph.')
     return res_list_1, res_list_2
 
 
@@ -99,8 +98,6 @@ def error_fn_dense_gaussian_alignment(optim_vars, aux_vars) -> torch.Tensor:
 
     h_distance = hellinger_distance(gaussian_xyz_i_corrected, gaussian_covariance_i, gaussian_xyz_j_corrected, gaussian_covariance_i) # (batch_size, num_gs)
     color_diff = torch.norm(gaussian_color_i.tensor - gaussian_color_j.tensor, p=1, dim=-1) # (batch_size, num_gs)
-    print(f"color_diff shape = {color_diff.shape}")
-    print(f"h_distance shape = {h_distance.shape}")
     # valid_color = modified_sigmoid(color_diff, k=5) > 0.1
     return modified_sigmoid(color_diff, k=6) * h_distance.sqrt()
 

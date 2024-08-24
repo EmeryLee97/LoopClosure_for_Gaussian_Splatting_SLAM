@@ -78,8 +78,6 @@ class GaussianSLAMPoseGraph:
             gaussian_color_j: torch.Tensor,
         ) -> None:
         """ add an odometry edge or loop edge to the objective """
-        print(f"gaussian_color_i shape = {gaussian_color_i.shape}")
-        print(f"gaussian_color_j shape = {gaussian_color_j.shape}")
         num_matches = gaussian_xyz_i.shape[0]
         gaussian_xyz_i_th = th.Variable(tensor=gaussian_xyz_i.unsqueeze(0)) # (1, num_gs, 3)
         gaussian_scaling_i_th = th.Variable(tensor=gaussian_scaling_i.unsqueeze(0)) # (1, num_gs, 3)
@@ -158,10 +156,8 @@ class GaussianSLAMPoseGraph:
         last_frustum_corners = compute_camera_frustum_corners(self.dataset[last_submap_frame_id][2], estimated_c2ws[last_submap_frame_id], self.dataset.intrinsics)
         last_reused_pts_ids = compute_frustum_point_ids(last_gaussian_model.get_xyz(), last_frustum_corners, device=self.device)
         if self.objective.has_optim_var(f"VERTEX_SE3__{str(last_submap_id).zfill(6)}"):
-            print(f"Loading vertex{last_submap_id} from objective")
             last_vertex = self.objective.get_optim_var(f"VERTEX_SE3__{str(last_submap_id).zfill(6)}")
         else:
-            print(f"Constructing vertex_{last_submap_id}")
             last_vertex = th.SE3(tensor=torch.tile(torch.eye(3, 4), [1, 1, 1]), name=f"VERTEX_SE3__{str(last_submap_id).zfill(6)}")
 
         current_submap_id = len(new_submap_frame_ids) - 1
@@ -169,10 +165,8 @@ class GaussianSLAMPoseGraph:
         current_frustum_corners = compute_camera_frustum_corners(self.dataset[current_submap_frame_id][2], estimated_c2ws[current_submap_frame_id], self.dataset.intrinsics)
         current_reused_pts_ids = compute_frustum_point_ids(current_gaussian_model.get_xyz(), current_frustum_corners, device=self.device)
         if self.objective.has_optim_var(f"VERTEX_SE3__{str(current_submap_id).zfill(6)}"):
-            print(f"Loading vertex{current_submap_id} from objective")
             current_vertex = self.objective.get_optim_var(f"VERTEX_SE3__{str(current_submap_id).zfill(6)}")
         else:
-            print(f"Constructing vertex_{current_submap_id}")
             current_vertex = th.SE3(tensor=torch.tile(torch.eye(3, 4), [1, 1, 1]), name=f"VERTEX_SE3__{str(current_submap_id).zfill(6)}")
 
         match_idx_last, match_idx_current = match_gaussian_means(
@@ -193,7 +187,6 @@ class GaussianSLAMPoseGraph:
             current_gaussian_model.get_xyz()[current_reused_pts_ids][match_idx_current][downsample_ids], 
             SH2RGB(current_gaussian_model.get_features()[current_reused_pts_ids][match_idx_current][downsample_ids]).clamp(0, 1),
         )
-        # print(f"Current error metric = {self.objective.error_metric()}")
 
     def create_loop_constraint(
         self, 
@@ -213,20 +206,16 @@ class GaussianSLAMPoseGraph:
         current_frustum_corners = compute_camera_frustum_corners(self.dataset[current_submap_frame_id][2], estimated_c2ws[current_submap_frame_id], self.dataset.intrinsics)
         current_reused_pts_ids = compute_frustum_point_ids(current_gaussian_model.get_xyz(), current_frustum_corners, device=self.device)
         if self.objective.has_optim_var(f"VERTEX_SE3__{str(current_submap_id).zfill(6)}"):
-            print(f"Loading vertex{current_submap_id} from objective")
             current_vertex = self.objective.get_optim_var(f"VERTEX_SE3__{str(current_submap_id).zfill(6)}")
         else:
-            print(f"Constructing vertex_{current_submap_id}")
             current_vertex = th.SE3(tensor=torch.tile(torch.eye(3, 4), [1, 1, 1]), name=f"VERTEX_SE3__{str(current_submap_id).zfill(6)}")
         
         loop_submap_frame_id = new_submap_frame_ids[loop_submap_id]
         loop_frustum_corners = compute_camera_frustum_corners(self.dataset[loop_submap_frame_id][2], estimated_c2ws[loop_submap_frame_id], self.dataset.intrinsics)
         loop_reused_pts_ids = compute_frustum_point_ids(loop_gaussian_model.get_xyz(), loop_frustum_corners, device=self.device)
         if loop_submap_id == 0:
-            print(f"Loading loop vertex{loop_submap_id} from objective")
             loop_vertex = self.objective.get_aux_var(f"VERTEX_SE3__{str(loop_submap_id).zfill(6)}")
         else:
-            print(f"Constructing loop vertex_{loop_submap_id}")
             loop_vertex = self.objective.get_optim_var(f"VERTEX_SE3__{str(loop_submap_id).zfill(6)}")
             
         if self.use_gt_relative_pose:
