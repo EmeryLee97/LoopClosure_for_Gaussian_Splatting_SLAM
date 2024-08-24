@@ -211,16 +211,20 @@ class GaussianSLAMPoseGraph:
         current_frustum_corners = compute_camera_frustum_corners(self.dataset[current_submap_frame_id][2], estimated_c2ws[current_submap_frame_id], self.dataset.intrinsics)
         current_reused_pts_ids = compute_frustum_point_ids(current_gaussian_model.get_xyz(), current_frustum_corners, device=self.device)
         if self.objective.has_optim_var(f"VERTEX_SE3__{str(current_submap_id).zfill(6)}"):
-            current_vertex = self.objective.get_aux_var(f"VERTEX_SE3__{str(current_submap_id).zfill(6)}")
+            print(f"Loading vertex{current_submap_id} from objective")
+            current_vertex = self.objective.has_optim_var(f"VERTEX_SE3__{str(current_submap_id).zfill(6)}")
         else:
+            print(f"Constructing vertex_{current_submap_id}")
             current_vertex = th.SE3(tensor=torch.tile(torch.eye(3, 4), [1, 1, 1]), name=f"VERTEX_SE3__{str(current_submap_id).zfill(6)}")
         
         loop_submap_frame_id = new_submap_frame_ids[loop_submap_id]
         loop_frustum_corners = compute_camera_frustum_corners(self.dataset[loop_submap_frame_id][2], estimated_c2ws[loop_submap_frame_id], self.dataset.intrinsics)
         loop_reused_pts_ids = compute_frustum_point_ids(loop_gaussian_model.get_xyz(), loop_frustum_corners, device=self.device)
         if loop_submap_id == 0:
+            print(f"Loading loop vertex{loop_submap_id} from objective")
             loop_vertex = self.objective.get_aux_var(f"VERTEX_SE3__{str(loop_submap_id).zfill(6)}")
         else:
+            print(f"Constructing loop vertex_{loop_submap_id}")
             loop_vertex = self.objective.get_optim_var(f"VERTEX_SE3__{str(loop_submap_id).zfill(6)}")
             
         if self.use_gt_relative_pose:
@@ -232,7 +236,7 @@ class GaussianSLAMPoseGraph:
         match_idx_loop, match_idx_current = match_gaussian_means(
             loop_gaussian_model.get_xyz()[loop_reused_pts_ids], # TODO: should I detach them from the graph?
             current_gaussian_model.get_xyz()[current_reused_pts_ids], 
-            relative_pose, 
+            relative_pose.to('cuda'), 
             self.center_matching_threshold
         )
         loop_edge = GaussianSLAMEdge(loop_submap_id, current_submap_id, relative_pose, cost_weight)

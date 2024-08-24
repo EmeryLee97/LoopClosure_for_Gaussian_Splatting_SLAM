@@ -24,10 +24,8 @@ def downsample(container, num_samples: int):
 
 def match_gaussian_means(pts_1: torch.Tensor, pts_2: torch.Tensor, transformation: torch.Tensor, epsilon=5e-2) -> Tuple[List]:
     """ Select inlier correspondences from two Gaussian clouds, use kd-tree to speed up """
-    print(f"pts_1 is at {pts_1.device}")
-    print(f"transformation matrix is at {transformation.device}")
-    rotation = transformation[:3, :3].to(pts_1.device)
-    translation = transformation[:3, 3].to(pts_1.device)
+    rotation = transformation[:3, :3]
+    translation = transformation[:3, 3]
     pts_1_new = pts_1 @ rotation.transpose(-1, -2) + translation
     pts2_kdtree = KDTree(torch2np(pts_2))
 
