@@ -236,14 +236,15 @@ class GaussianSLAMPoseGraph:
             relative_pose.to('cuda'), 
             self.center_matching_threshold
         )
+        downsample_ids = downsample(match_idx_loop, self.downsample_num)
         loop_edge = GaussianSLAMEdge(loop_submap_id, current_submap_id, relative_pose, cost_weight)
         print(f"Building loop constraint between submap_{loop_submap_id} and submap{current_submap_id}")
         self.add_edge(
             loop_vertex, current_vertex, loop_edge, 
-            loop_gaussian_model.get_xyz()[loop_reused_pts_ids][match_idx_loop], 
-            loop_gaussian_model.get_scaling()[loop_reused_pts_ids][match_idx_loop], 
-            loop_gaussian_model.get_rotation()[loop_reused_pts_ids][match_idx_loop], 
-            SH2RGB(loop_gaussian_model.get_features()[loop_reused_pts_ids][match_idx_loop]).clamp(0, 1),
-            current_gaussian_model.get_xyz()[current_reused_pts_ids][match_idx_current], 
-            SH2RGB(current_gaussian_model.get_features()[current_reused_pts_ids][match_idx_current]).clamp(0, 1)
+            loop_gaussian_model.get_xyz()[loop_reused_pts_ids][match_idx_loop][downsample_ids], 
+            loop_gaussian_model.get_scaling()[loop_reused_pts_ids][match_idx_loop][downsample_ids], 
+            loop_gaussian_model.get_rotation()[loop_reused_pts_ids][match_idx_loop][downsample_ids], 
+            SH2RGB(loop_gaussian_model.get_features()[loop_reused_pts_ids][match_idx_loop][downsample_ids]).clamp(0, 1),
+            current_gaussian_model.get_xyz()[current_reused_pts_ids][match_idx_current][downsample_ids], 
+            SH2RGB(current_gaussian_model.get_features()[current_reused_pts_ids][match_idx_current][downsample_ids]).clamp(0, 1)
         )
