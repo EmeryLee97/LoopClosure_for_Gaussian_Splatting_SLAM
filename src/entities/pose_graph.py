@@ -84,9 +84,9 @@ class GaussianSLAMPoseGraph:
         gaussian_xyz_i_th = th.Variable(tensor=gaussian_xyz_i.unsqueeze(0)) # (1, num_gs, 3)
         gaussian_scaling_i_th = th.Variable(tensor=gaussian_scaling_i.unsqueeze(0)) # (1, num_gs, 3)
         gaussian_rotation_i_th = th.Variable(tensor=gaussian_rotation_i.unsqueeze(0)) # (1, num_gs, 4)
-        gaussian_color_i_th = th.Variable(tensor=gaussian_color_i.unsqueeze(0)) # (1, num_gs, 3)
+        gaussian_color_i_th = th.Variable(tensor=gaussian_color_i.squeeze().unsqueeze(0)) # (1, num_gs, 3)
         gaussian_xyz_j_th = th.Variable(tensor=gaussian_xyz_j.unsqueeze(0)) # (1, num_gs, 3)
-        gaussian_color_j_th = th.Variable(tensor=gaussian_color_j.unsqueeze(0)) # (1, num_gs, 3)
+        gaussian_color_j_th = th.Variable(tensor=gaussian_color_j.squeeze().unsqueeze(0)) # (1, num_gs, 3)
 
         gaussian_xyz_i_th.to(self.device)
         gaussian_scaling_i_th.to(self.device)
