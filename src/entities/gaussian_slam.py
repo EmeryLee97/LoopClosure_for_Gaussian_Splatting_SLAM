@@ -169,7 +169,7 @@ class GaussianSLAM(object):
                         # modify the 3d Gaussians from checkpoints and save them again
                         pose_val = pose_val.squeeze().to('cuda')
                         gaussian_model_prev, submap_start_idx, submap_end_idx = load_gaussian_from_submap_ckpt(i+1, self.output_path, self.opt)
-                        gaussian_model_prev._xyz = gaussian_model_prev._xyz @ pose_val[:3, :3].transpose(-1, -2) + pose_val[:3, 3].unsuqeeze(-2)
+                        gaussian_model_prev._xyz = gaussian_model_prev._xyz @ pose_val[:3, :3].transpose(-1, -2) + pose_val[:3, 3].unsqueeze(-2)
                         # TODO: Do I also need to rotate the covariance?
                         gaussian_params = gaussian_model_prev.capture_dict()
                         submap_ckpt = {
