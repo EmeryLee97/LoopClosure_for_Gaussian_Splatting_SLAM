@@ -182,7 +182,7 @@ class GaussianSLAM(object):
                         del gaussian_model_prev
                         # modify the poses in one submap TODO: interpolation?
                         for frame_idx in range(submap_start_idx, submap_end_idx+1):
-                            pose_val.to(self.estimated_c2ws[frame_idx].device)
+                            pose_val = pose_val.to(self.estimated_c2ws[frame_idx].device)
                             self.estimated_c2ws[frame_idx] = pose_val[:3, :3] @ self.estimated_c2ws[frame_idx] + pose_val[:3, 3]
                         # reinitialize for next optimization
                         update_dict[pose_key] = torch.eye(3, 4, device='cuda').unsqueeze(0)
@@ -209,7 +209,6 @@ class GaussianSLAM(object):
 
             # Reinitialize gaussian model for new segment
             if self.should_start_new_submap(frame_id):
-                """ loop closure detection, pose graph optimizaiton, correct the poses and gaussians, reset the faiss index """
                 if self.optimize_with_loop_closure:
                     self.pose_graph_optimization(gaussian_model)
 
