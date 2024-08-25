@@ -6,6 +6,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import wandb
+from scipy.spatial.transform import Rotation as R
+import bpy
+import blender_plots as bplt
+from datetime import datetime
+from PIL import ImageColor
+
+from src.entities.gaussian_model import GaussianModel
+from src.utils.gaussian_model_utils import SH2RGB
 
 
 class Logger(object):
@@ -13,6 +21,7 @@ class Logger(object):
     def __init__(self, output_path: Union[Path, str], use_wandb=False) -> None:
         self.output_path = Path(output_path)
         (self.output_path / "mapping_vis").mkdir(exist_ok=True, parents=True)
+        (self.output_path / "pose_graph_vis").mkdir(exist_ok=True, parents=True)
         self.use_wandb = use_wandb
 
     def log_tracking_iteration(self, frame_id, cur_pose, gt_quat, gt_trans, total_loss,
@@ -155,3 +164,107 @@ class Logger(object):
             log_title = "Mapping_vis/" + f'{frame_id:04d}_{iter:04d}'
             wandb.log({log_title: [wandb.Image(fig_name)]})
         print(f"Saved rendering vis of color/depth at {frame_id:04d}_{iter:04d}.jpg")
+
+    # def log_pose_graph_iteration(self):
+    #     if self.use_wandb:
+    #         wandb.log
+
+
+    def vis_submaps(self,
+        gaussian_model_i: GaussianModel, pose_i: torch.Tensor, idx_i: int,
+        gaussian_model_j: GaussianModel, pose_j: torch.Tensor, idx_j: int,
+        output_path: Union[str, Path]
+    ) -> None:
+        """ Visualizes the overlapped Gaussians from two submaps """
+        gaussian_xyz = torch.cat((
+            gaussian_model_i.get_xyz() @ pose_i[:3, :3].transpose(-1, -2) + pose_i[:3, :3].unsqueeze(-2),
+            gaussian_model_j.get_xyz() @ pose_j[:3, :3].transpose(-1, -2) + pose_j[:3, :3].unsqueeze(-2)),
+            dim=-2
+        ).detach().cpu().numpy()
+        gaussian_scaling = torch.cat((gaussian_model_i.get_scaling(), gaussian_model_j.get_scaling()), dim=-2).detach().cpu().numpy()
+        gaussian_rotation = R.from_quat(
+            torch.cat((gaussian_model_i.get_rotation(), gaussian_model_j.get_rotation()), dim=-2).detach().cpu().numpy()[:, [1, 2, 3, 0]]).as_matrix()
+        gaussian_color = SH2RGB(torch.cat((gaussian_model_i.get_features().squeeze(), gaussian_model_j.get_features().squeeze()), dim=-2)).clamp(0, 1)
+        gaussian_opacity = torch.cat((gaussian_model_i.get_opacity(), gaussian_model_j.get_opacity()), dim=-2)
+        gaussian_color_opaticy = torch.cat((gaussian_color, gaussian_opacity), dim=-1).detach().cpu().numpy()
+            
+        camera_location = [-0.778881, -1.854416, 3.641333]
+        camera_rotation = [-5.921588, -0.000003, -12.637432]
+        bplt.scene_utils.setup_scene(
+            camera_location=camera_location,
+            camera_rotation=camera_rotation,
+            clear=True,
+            sun_energy=1,
+        )
+        scatter = bplt.Scatter(
+            gaussian_xyz,
+            color=gaussian_color_opaticy,
+            name=f'submaps_overlap_{idx_i}_{idx_j}',
+            marker_scale=gaussian_scaling,
+            marker_rotation=gaussian_rotation,
+            marker_type='ico_spheres',
+            subdivisions=2,
+        )
+        scatter.base_object.rotation_euler = [np.pi, 0, 0]
+        bpy.context.scene.render.film_transparent = True
+        if "Cube" in bpy.data.objects:
+            bpy.data.objects.remove(bpy.data.objects["Cube"])
+        timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        bplt.scene_utils.render_image(
+            f'scene{timestamp}.png',
+            resolution=(1024 // 1, 600 // 1),
+            samples=10,
+        )
+        save_path = Path(output_path, f'submap_overlap__{idx_i}_{idx_j}.blend')
+        bpy.ops.wm.save_as_mainfile(filepath=str(save_path))
+
+
+    def vis_submaps_overlap(self,
+        gaussian_model_i: GaussianModel, pose_i: torch.Tensor, idx_i: int,
+        gaussian_model_j: GaussianModel, pose_j: torch.Tensor, idx_j: int,
+        output_path: Union[str, Path]
+    ) -> None:
+        """ Visualizes the overlapped Gaussians from two submaps """
+        gaussian_xyz = torch.cat((
+            gaussian_model_i.get_xyz() @ pose_i[:3, :3].transpose(-1, -2) + pose_i[:3, :3].unsqueeze(-2),
+            gaussian_model_j.get_xyz() @ pose_j[:3, :3].transpose(-1, -2) + pose_j[:3, :3].unsqueeze(-2)),
+            dim=-2
+        ).detach().cpu().numpy()
+        gaussian_scaling = torch.cat((gaussian_model_i.get_scaling(), gaussian_model_j.get_scaling()), dim=-2).detach().cpu().numpy()
+        gaussian_rotation = R.from_quat(
+        torch.cat((gaussian_model_i.get_rotation(), gaussian_model_j.get_rotation()), dim=-2).detach().cpu().numpy()[:, [1, 2, 3, 0]]).as_matrix()
+        
+            
+        camera_location = [-0.778881, -1.854416, 3.641333]
+        camera_rotation = [-5.921588, -0.000003, -12.637432]
+        bplt.scene_utils.setup_scene(
+            camera_location=camera_location,
+            camera_rotation=camera_rotation,
+            clear=True,
+            sun_energy=1,
+        )
+        colors = [[c / 255 for c in ImageColor.getcolor(color, "RGB")]for color in plt.rcParams['axes.prop_cycle'].by_key()['color']]
+
+        scatter = bplt.Scatter(
+            gaussian_xyz,
+            color=colors[2],
+            name=f'submaps_overlap_{idx_i}_{idx_j}',
+            marker_scale=gaussian_scaling,
+            marker_rotation=gaussian_rotation,
+            marker_type='ico_spheres',
+            subdivisions=2,
+        )
+        scatter.base_object.rotation_euler = [np.pi, 0, 0]
+        bpy.context.scene.render.film_transparent = True
+        if "Cube" in bpy.data.objects:
+            bpy.data.objects.remove(bpy.data.objects["Cube"])
+        timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        bplt.scene_utils.render_image(
+            f'scene{timestamp}.png',
+            resolution=(1024 // 1, 600 // 1),
+            samples=10,
+        )
+        save_path = output_path / f'submap_overlap__{idx_i}_{idx_j}.blend'
+        bpy.ops.wm.save_as_mainfile(filepath=str(save_path))
+
+# TODO: what kind of visualizations do I want?

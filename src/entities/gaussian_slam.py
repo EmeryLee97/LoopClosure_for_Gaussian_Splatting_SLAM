@@ -17,13 +17,13 @@ from src.entities.mapper import Mapper
 from src.entities.tracker import Tracker
 from src.entities.logger import Logger
 from src.entities.loop_closure import LoopClosureDetector
-from src.entities.pose_graph import GaussianSLAMPoseGraph, GaussianSLAMEdge
+from src.entities.pose_graph import GaussianSLAMPoseGraph
 
 from src.utils.io_utils import save_dict_to_ckpt, save_dict_to_yaml
 from src.utils.mapper_utils import exceeds_motion_thresholds
 from src.utils.utils import np2torch, setup_seed, torch2np, get_id_from_string
 from src.utils.vis_utils import *  # noqa - needed for debugging
-from src.utils.io_utils import load_submap_ckpt, load_gaussian_from_submap_ckpt
+from src.utils.io_utils import load_gaussian_from_submap_ckpt
 
 class GaussianSLAM(object):
 
@@ -162,14 +162,34 @@ class GaussianSLAM(object):
                     self.pose_graph.create_loop_constraint(
                         current_gaussian_model, loop_gaussian_model, loop_idx, self.new_submap_frame_ids, self.estimated_c2ws, loop_weight
                     )
+                    self.pose_graph.logger.vis_submaps_overlap(
+                        loop_gaussian_model, torch.eye(4, device='cuda'), loop_idx,
+                        current_gaussian_model, torch.eye(4, device='cuda'), self.submap_id,
+                        self.output_path / "blender_before"
+                    )
                 if len(loop_idx_list) != 0:
                     optimize_info = self.pose_graph.optimize()
                     update_dict = {}
-                    for i, (pose_key, pose_val) in enumerate(optimize_info.best_solution.items()):
+                    #----------------------------------------------------------------------------------------
+                    for loop_idx in loop_idx_list:
+                        loop_gaussian_model, _, _ = load_gaussian_from_submap_ckpt(loop_idx, self.output_path, self.opt)
+                        if loop_idx == 0:
+                            loop_vertex = self.pose_graph.objective.get_aux_var(f"VERTEX_SE3__{str(loop_idx).zfill(6)}")
+                        else:
+                            loop_vertex = self.pose_graph.objective.get_optim_var(f"VERTEX_SE3__{str(loop_idx).zfill(6)}")
+                        current_vertex = self.pose_graph.objective.get_optim_var(f"VERTEX_SE3__{str(self.submap_id).zfill(6)}")
+                        self.pose_graph.logger.vis_submaps_overlap(
+                        loop_gaussian_model, loop_vertex.tensor.to('cuda'), loop_idx,
+                        current_gaussian_model, current_vertex.tensor.to('cuda'), self.submap_id,
+                        self.output_path / "blender_after"
+                    )
+                    #----------------------------------------------------------------------------------------
+                    for pose_key, pose_val in optimize_info.best_solution.items():
+                        submap_id = get_id_from_string(pose_key)
                         # modify the 3d Gaussians from checkpoints and save them again
                         pose_correction = torch.eye(4, device='cuda')
                         pose_correction[:3, :] = pose_val.squeeze().to('cuda')
-                        gaussian_model_prev, submap_start_idx, submap_end_idx = load_gaussian_from_submap_ckpt(i+1, self.output_path, self.opt)
+                        gaussian_model_prev, submap_start_idx, submap_end_idx = load_gaussian_from_submap_ckpt(submap_id, self.output_path, self.opt)
                         gaussian_model_prev._xyz = gaussian_model_prev._xyz @ pose_correction[:3, :3].transpose(-1, -2) + pose_correction[:3, 3].unsqueeze(-2)
                         # TODO: Do I also need to rotate the covariance?
                         gaussian_params = gaussian_model_prev.capture_dict()
@@ -178,7 +198,7 @@ class GaussianSLAM(object):
                             "submap_keyframes": sorted(list(self.keyframes_info.keys()))
                         }
                         save_dict_to_ckpt(
-                            submap_ckpt, f"{str(i+1).zfill(6)}.ckpt", directory=self.output_path / "submaps")
+                            submap_ckpt, f"{str(submap_id).zfill(6)}.ckpt", directory=self.output_path / "submaps")
                         # TODO: torch.cuda.empty_cache()?
                         del gaussian_model_prev
                         # modify the poses in one submap TODO: interpolation?
