@@ -233,6 +233,7 @@ class GaussianSLAM(object):
                 if self.submap_id > 1:
                     self.local_feature_index.add_to_index(self.dataset[frame_id][1])
 
-        self.pose_graph_optimization(gaussian_model)
+        # TODO: add another pgo at the end of 
+        # self.pose_graph_optimization(gaussian_model)
         save_dict_to_ckpt(self.estimated_c2ws[:frame_id + 1], "estimated_c2w.ckpt", directory=self.output_path)
 
