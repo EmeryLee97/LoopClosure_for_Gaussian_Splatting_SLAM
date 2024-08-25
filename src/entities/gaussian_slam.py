@@ -181,6 +181,7 @@ class GaussianSLAM(object):
                         # TODO: torch.cuda.empty_cache()?
                         del gaussian_model_prev
                         # modify the poses in one submap TODO: interpolation?
+                        pose_val.to('cpu')
                         for frame_idx in range(submap_start_idx, submap_end_idx+1):
                             self.estimated_c2ws[frame_idx] = pose_val[:3, :3] @ self.estimated_c2ws[frame_idx] + pose_val[:3, 3]
                         # reinitialize for next optimization
