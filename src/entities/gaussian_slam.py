@@ -167,9 +167,10 @@ class GaussianSLAM(object):
                     update_dict = {}
                     for i, (pose_key, pose_val) in enumerate(optimize_info.best_solution.items()):
                         # modify the 3d Gaussians from checkpoints and save them again
-                        pose_val = pose_val.squeeze().to('cuda')
+                        pose_correction = torch.eye(4, device='cuda')
+                        pose_correction[:3, :] = pose_val.squeeze().to('cuda')
                         gaussian_model_prev, submap_start_idx, submap_end_idx = load_gaussian_from_submap_ckpt(i+1, self.output_path, self.opt)
-                        gaussian_model_prev._xyz = gaussian_model_prev._xyz @ pose_val[:3, :3].transpose(-1, -2) + pose_val[:3, 3].unsqueeze(-2)
+                        gaussian_model_prev._xyz = gaussian_model_prev._xyz @ pose_correction[:3, :3].transpose(-1, -2) + pose_correction[:3, 3].unsqueeze(-2)
                         # TODO: Do I also need to rotate the covariance?
                         gaussian_params = gaussian_model_prev.capture_dict()
                         submap_ckpt = {
@@ -182,8 +183,8 @@ class GaussianSLAM(object):
                         del gaussian_model_prev
                         # modify the poses in one submap TODO: interpolation?
                         for frame_idx in range(submap_start_idx, submap_end_idx+1):
-                            pose_val = pose_val.to(self.estimated_c2ws[frame_idx].device)
-                            self.estimated_c2ws[frame_idx] = pose_val[:3, :3] @ self.estimated_c2ws[frame_idx] + pose_val[:3, 3]
+                            pose_correction = pose_correction.to(self.estimated_c2ws[frame_idx].device)
+                            self.estimated_c2ws[frame_idx] = pose_correction @ self.estimated_c2ws[frame_idx]
                         # reinitialize for next optimization
                         update_dict[pose_key] = torch.eye(3, 4, device='cuda').unsqueeze(0)
                     self.pose_graph.objective.update(update_dict)
