@@ -183,7 +183,7 @@ class GaussianSLAM(object):
                             self.estimated_c2ws[frame_idx] = pose_val[:3, :3] @ self.estimated_c2ws[frame_idx] + pose_val[:3, 3]
                         # reinitialize for next optimization
                         update_dict[pose_key] = torch.eye(3, 4, device='cuda').unsqueeze(0)
-                self.pose_graph.objective.update(update_dict)
+                    self.pose_graph.objective.update(update_dict)
         self.loop_closure_detector.add_to_index(netvlad_feature=netvlad_feature)
 
 
