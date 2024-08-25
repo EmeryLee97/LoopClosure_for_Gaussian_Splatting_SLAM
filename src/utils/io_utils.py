@@ -179,5 +179,5 @@ def load_gaussian_from_submap_ckpt(
 
     gaussian_model = GaussianModel(0)
     gaussian_model.restore_from_params(submap["gaussian_params"], training_args)
-    return gaussian_model
+    return gaussian_model, submap["submap_keyframes"][0], submap["submap_keyframes"][-1]
 

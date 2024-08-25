@@ -187,6 +187,7 @@ class GaussianSLAMPoseGraph:
             current_gaussian_model.get_xyz()[current_reused_pts_ids][match_idx_current][downsample_ids], 
             SH2RGB(current_gaussian_model.get_features()[current_reused_pts_ids][match_idx_current][downsample_ids]).clamp(0, 1),
         )
+        print(f"Current error metric = {self.objective.error_metric()}")
 
     def create_loop_constraint(
         self, 
@@ -242,3 +243,4 @@ class GaussianSLAMPoseGraph:
             current_gaussian_model.get_xyz()[current_reused_pts_ids][match_idx_current][downsample_ids], 
             SH2RGB(current_gaussian_model.get_features()[current_reused_pts_ids][match_idx_current][downsample_ids]).clamp(0, 1)
         )
+        print(f"Current error metric = {self.objective.error_metric()}")
