@@ -3,7 +3,7 @@
 #SBATCH --output=/home/stud/lxuh/storage/user/lxuh/output/logs/%A_%a.log  # please change accordingly
 #SBATCH --output=/home/stud/lxuh/storage/user/lxuh/output/logs/%A_%a.log   # please change accordingly
 #SBATCH --nodes=1
-#SBATCH --NodeList=node18
+#SBATCH --nodelist=node18
 #SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:1,VRAM:16G
 #SBATCH --mem=16G
