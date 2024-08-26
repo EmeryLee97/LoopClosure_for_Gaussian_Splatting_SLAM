@@ -162,13 +162,14 @@ class GaussianSLAM(object):
                     self.pose_graph.create_loop_constraint(
                         current_gaussian_model, loop_gaussian_model, loop_idx, self.new_submap_frame_ids, self.estimated_c2ws, loop_weight
                     )
-                    self.pose_graph.logger.vis_submaps_overlap(
-                        loop_gaussian_model, torch.eye(4, device='cuda'), loop_idx,
-                        current_gaussian_model, torch.eye(4, device='cuda'), self.submap_id,
-                        self.output_path / "blender_before"
-                    )
+                    # self.pose_graph.logger.vis_submaps_overlap(
+                    #     loop_gaussian_model, torch.eye(4, device='cuda'), loop_idx,
+                    #     current_gaussian_model, torch.eye(4, device='cuda'), self.submap_id,
+                    #     self.output_path / "blender_before"
+                    # )
                 if len(loop_idx_list) != 0:
                     optimize_info = self.pose_graph.optimize()
+                    print(optimize_info)
                     update_dict = {}
                     #----------------------------------------------------------------------------------------
                     # for loop_idx in loop_idx_list:
@@ -190,15 +191,15 @@ class GaussianSLAM(object):
                         pose_correction = torch.eye(4, device='cuda')
                         pose_correction[:3, :] = pose_val.squeeze().to('cuda')
                         gaussian_model_prev, submap_start_idx, submap_end_idx = load_gaussian_from_submap_ckpt(submap_id, self.output_path, self.opt)
-                        gaussian_model_prev._xyz = gaussian_model_prev._xyz @ pose_correction[:3, :3].transpose(-1, -2) + pose_correction[:3, 3].unsqueeze(-2)
-                        # TODO: Do I also need to rotate the covariance?
-                        gaussian_params = gaussian_model_prev.capture_dict()
-                        submap_ckpt = {
-                            "gaussian_params": gaussian_params,
-                            "submap_keyframes": sorted(list(self.keyframes_info.keys()))
-                        }
-                        save_dict_to_ckpt(
-                            submap_ckpt, f"{str(submap_id).zfill(6)}.ckpt", directory=self.output_path / "submaps")
+                        # gaussian_model_prev._xyz = gaussian_model_prev._xyz @ pose_correction[:3, :3].transpose(-1, -2) + pose_correction[:3, 3].unsqueeze(-2)
+                        # # TODO: Do I also need to rotate the covariance?
+                        # gaussian_params = gaussian_model_prev.capture_dict()
+                        # submap_ckpt = {
+                        #     "gaussian_params": gaussian_params,
+                        #     "submap_keyframes": sorted(list(self.keyframes_info.keys()))
+                        # }
+                        # save_dict_to_ckpt(
+                        #     submap_ckpt, f"{str(submap_id).zfill(6)}.ckpt", directory=self.output_path / "submaps")
                         # TODO: torch.cuda.empty_cache()?
                         del gaussian_model_prev
                         # modify the poses in one submap TODO: interpolation?
