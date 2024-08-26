@@ -7,9 +7,22 @@ import open3d as o3d
 import theseus as th
 from scipy.spatial import KDTree
 
-
 from src.utils.utils import torch2np
 from src.utils.gaussian_model_utils import build_scaling_rotation, build_rotation
+
+
+
+def quaternion_multiplication(q1: torch.Tensor, q2: torch.Tensor):
+    """ quaternion multiplication q1*q2 (q1 must be on left), broadcasting and batch operation supported """
+    q1_w, q1_x, q1_y, q1_z = q1[..., 0], q1[..., 1], q1[..., 2], q1[..., 3]
+    q2_w, q2_x, q2_y, q2_z = q2[..., 0], q2[..., 1], q2[..., 2], q2[..., 3]
+
+    w = q1_w * q2_w - q1_x * q2_x - q1_y * q2_y - q1_z * q2_z
+    x = q1_w * q2_x + q1_x * q2_w + q1_y * q2_z - q1_z * q2_y
+    y = q1_w * q2_y - q1_x * q2_z + q1_y * q2_w + q1_z * q2_x
+    z = q1_w * q2_z + q1_x * q2_y - q1_y * q2_x + q1_z * q2_w
+
+    return torch.stack((w, x, y, z), dim=-1)
 
 
 def downsample(container, num_samples: int):
@@ -253,19 +266,5 @@ def to_skew_symmetric(tensor: torch.Tensor) -> torch.Tensor:
     skew_symmetric[..., 2, 1] = tensor[..., 0]
 
     return skew_symmetric
-
-
-def quaternion_multiplication(q1: torch.Tensor, q2: torch.Tensor):
-    """ quaternion multiplication q1*q2 (q1 must be on left), broadcasting and batch operation supported """
-    q1_w, q1_x, q1_y, q1_z = q1[..., 0], q1[..., 1], q1[..., 2], q1[..., 3]
-    q2_w, q2_x, q2_y, q2_z = q2[..., 0], q2[..., 1], q2[..., 2], q2[..., 3]
-
-    w = q1_w * q2_w - q1_x * q2_x - q1_y * q2_y - q1_z * q2_z
-    x = q1_w * q2_x + q1_x * q2_w + q1_y * q2_z - q1_z * q2_y
-    y = q1_w * q2_y - q1_x * q2_z + q1_y * q2_w + q1_z * q2_x
-    z = q1_w * q2_z + q1_x * q2_y - q1_y * q2_x + q1_z * q2_w
-
-    return torch.stack((w, x, y, z), dim=-1)
-
 
 # th.OptimizerInfo.best_solution

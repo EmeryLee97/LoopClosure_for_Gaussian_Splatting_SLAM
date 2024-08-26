@@ -9,6 +9,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from scipy.spatial.transform import Rotation as R
 
 from src.entities.arguments import OptimizationParams
 from src.entities.datasets import get_dataset
@@ -24,6 +25,7 @@ from src.utils.mapper_utils import exceeds_motion_thresholds
 from src.utils.utils import np2torch, setup_seed, torch2np, get_id_from_string
 from src.utils.vis_utils import *  # noqa - needed for debugging
 from src.utils.io_utils import load_gaussian_from_submap_ckpt
+from src.utils.pose_graph_utils import quaternion_multiplication
 
 class GaussianSLAM(object):
 
@@ -192,14 +194,17 @@ class GaussianSLAM(object):
                         # modify the 3d Gaussians from checkpoints and save them again
                         pose_correction = torch.eye(4, device='cuda')
                         pose_correction[:3, :] = pose_val.squeeze().to('cuda')
+                        quaternion_correction = R.from_matrix(torch2np(pose_correction[:3, :3])).as_quat()
+                        quaternion_correction = np2torch(quaternion_correction).to("cuda")
                         if submap_id == self.submap_id:
                             current_gaussian_model._xyz = current_gaussian_model._xyz @ pose_correction[:3, :3].transpose(-1, -2) + pose_correction[:3, 3].unsqueeze(-2)
+                            current_gaussian_model._rotation = quaternion_multiplication(quaternion_correction, current_gaussian_model.get_rotation())
                             submap_start_idx = self.new_submap_frame_ids[submap_id]
                             submap_end_idx = frame_id - 1
                         else:
                             gaussian_model_prev, submap_start_idx, submap_end_idx = load_gaussian_from_submap_ckpt(submap_id, self.output_path, self.opt)
                             gaussian_model_prev._xyz = gaussian_model_prev._xyz @ pose_correction[:3, :3].transpose(-1, -2) + pose_correction[:3, 3].unsqueeze(-2)
-                            # TODO: Do I also need to rotate the covariance?
+                            gaussian_model_prev._rotation = quaternion_multiplication(quaternion_correction, gaussian_model_prev.get_rotation())
                             gaussian_params = gaussian_model_prev.capture_dict()
                             submap_ckpt = {
                                 "gaussian_params": gaussian_params,
