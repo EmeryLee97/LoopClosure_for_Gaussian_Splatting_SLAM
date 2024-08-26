@@ -171,18 +171,18 @@ class GaussianSLAM(object):
                     optimize_info = self.pose_graph.optimize()
                     update_dict = {}
                     #----------------------------------------------------------------------------------------
-                    for loop_idx in loop_idx_list:
-                        loop_gaussian_model, _, _ = load_gaussian_from_submap_ckpt(loop_idx, self.output_path, self.opt)
-                        if loop_idx == 0:
-                            loop_vertex = self.pose_graph.objective.get_aux_var(f"VERTEX_SE3__{str(loop_idx).zfill(6)}")
-                        else:
-                            loop_vertex = self.pose_graph.objective.get_optim_var(f"VERTEX_SE3__{str(loop_idx).zfill(6)}")
-                        current_vertex = self.pose_graph.objective.get_optim_var(f"VERTEX_SE3__{str(self.submap_id).zfill(6)}")
-                        self.pose_graph.logger.vis_submaps_overlap(
-                            loop_gaussian_model, loop_vertex.tensor.squeeze().to('cuda'), loop_idx,
-                            current_gaussian_model, current_vertex.tensor.squeeze().to('cuda'), self.submap_id,
-                            self.output_path / "blender_after"
-                        )
+                    # for loop_idx in loop_idx_list:
+                    #     loop_gaussian_model, _, _ = load_gaussian_from_submap_ckpt(loop_idx, self.output_path, self.opt)
+                    #     if loop_idx == 0:
+                    #         loop_vertex = self.pose_graph.objective.get_aux_var(f"VERTEX_SE3__{str(loop_idx).zfill(6)}")
+                    #     else:
+                    #         loop_vertex = self.pose_graph.objective.get_optim_var(f"VERTEX_SE3__{str(loop_idx).zfill(6)}")
+                    #     current_vertex = self.pose_graph.objective.get_optim_var(f"VERTEX_SE3__{str(self.submap_id).zfill(6)}")
+                        # self.pose_graph.logger.vis_submaps_overlap(
+                        #     loop_gaussian_model, loop_vertex.tensor.squeeze().to('cuda'), loop_idx,
+                        #     current_gaussian_model, current_vertex.tensor.squeeze().to('cuda'), self.submap_id,
+                        #     self.output_path / "blender_after"
+                        # )
                     #----------------------------------------------------------------------------------------
                     for pose_key, pose_val in optimize_info.best_solution.items():
                         submap_id = get_id_from_string(pose_key)

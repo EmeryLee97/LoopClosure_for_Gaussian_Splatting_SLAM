@@ -92,13 +92,14 @@ def error_fn_dense_gaussian_alignment(optim_vars, aux_vars) -> torch.Tensor:
         raise ValueError(f"Wrong input error function size, got {len(optim_vars)} and {len(aux_vars)}")
 
     scaling_factor = 1
+    num_gs = gaussian_xyz_i.tensor.shape[1]
     gaussian_xyz_i_corrected = gaussian_xyz_i.tensor @ pose_i.rotation().tensor.transpose(-1, -2) + pose_i.translation().tensor.unsqueeze(-2)
     gaussian_covariance_i = build_covariance_from_scaling_rotation(gaussian_scaling_i.tensor, scaling_factor, gaussian_rotation_i.tensor)
     gaussian_xyz_j_corrected = gaussian_xyz_j.tensor @ pose_j.rotation().tensor.transpose(-1, -2) + pose_j.translation().tensor.unsqueeze(-2)
 
     h_distance = hellinger_distance(gaussian_xyz_i_corrected, gaussian_covariance_i, gaussian_xyz_j_corrected, gaussian_covariance_i) # (batch_size, num_gs)
     color_diff = torch.norm(gaussian_color_i.tensor - gaussian_color_j.tensor, p=1, dim=-1) # (batch_size, num_gs)
-    return modified_sigmoid(color_diff, k=6) * h_distance.sqrt()
+    return modified_sigmoid(color_diff, k=6) * h_distance.sqrt() / num_gs
 
 
 def preprocess_point_cloud(pcd: o3d.geometry.PointCloud, voxel_size=0.05) -> o3d.geometry.PointCloud:
