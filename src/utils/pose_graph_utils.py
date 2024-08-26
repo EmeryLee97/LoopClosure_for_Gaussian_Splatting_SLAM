@@ -99,7 +99,12 @@ def error_fn_dense_gaussian_alignment(optim_vars, aux_vars) -> torch.Tensor:
 
     h_distance = hellinger_distance(gaussian_xyz_i_corrected, gaussian_covariance_i, gaussian_xyz_j_corrected, gaussian_covariance_i) # (batch_size, num_gs)
     color_diff = torch.norm(gaussian_color_i.tensor - gaussian_color_j.tensor, p=1, dim=-1) # (batch_size, num_gs)
-    return modified_sigmoid(color_diff, k=6) * h_distance.sqrt() / num_gs
+    color_diff_sigmoid = modified_sigmoid(color_diff, k=6)
+    # color_mask = color_diff_sigmoid > 0.2
+    # num_valid_pair = color_mask.squeeze().sum()
+    # return color_diff_sigmoid * h_distance.sqrt() / num_gs
+    # return color_diff_sigmoid * h_distance.sqrt() / (num_valid_pair+1)
+    return color_diff_sigmoid * h_distance.sqrt()
 
 
 def preprocess_point_cloud(pcd: o3d.geometry.PointCloud, voxel_size=0.05) -> o3d.geometry.PointCloud:
