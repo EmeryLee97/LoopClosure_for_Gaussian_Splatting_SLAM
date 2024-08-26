@@ -226,8 +226,8 @@ class Logger(object):
     ) -> None:
         """ Visualizes the overlapped Gaussians from two submaps """
         gaussian_xyz = torch.cat((
-            gaussian_model_i.get_xyz() @ pose_i[:3, :3].transpose(-1, -2) + pose_i[:3, :3].unsqueeze(-2),
-            gaussian_model_j.get_xyz() @ pose_j[:3, :3].transpose(-1, -2) + pose_j[:3, :3].unsqueeze(-2)),
+            gaussian_model_i.get_xyz() @ pose_i[:3, :3].transpose(-1, -2) + pose_i[:3, 3].unsqueeze(-2),
+            gaussian_model_j.get_xyz() @ pose_j[:3, :3].transpose(-1, -2) + pose_j[:3, 3].unsqueeze(-2)),
             dim=-2
         ).detach().cpu().numpy()
         gaussian_scaling = torch.cat((gaussian_model_i.get_scaling(), gaussian_model_j.get_scaling()), dim=-2).detach().cpu().numpy()
@@ -259,11 +259,11 @@ class Logger(object):
         if "Cube" in bpy.data.objects:
             bpy.data.objects.remove(bpy.data.objects["Cube"])
         timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-        bplt.scene_utils.render_image(
-            f'scene{timestamp}.png',
-            resolution=(1024 // 1, 600 // 1),
-            samples=10,
-        )
+        # bplt.scene_utils.render_image(
+        #     f'scene{timestamp}.png',
+        #     resolution=(1024 // 1, 600 // 1),
+        #     samples=10,
+        # )
         save_path = output_path / f'submap_overlap__{idx_i}_{idx_j}.blend'
         bpy.ops.wm.save_as_mainfile(filepath=str(save_path))
 
