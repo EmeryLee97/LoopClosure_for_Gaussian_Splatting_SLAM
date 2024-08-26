@@ -193,19 +193,20 @@ class GaussianSLAM(object):
                         pose_correction = torch.eye(4, device='cuda')
                         pose_correction[:3, :] = pose_val.squeeze().to('cuda')
                         if submap_id == self.submap_id:
+                            current_gaussian_model._xyz = current_gaussian_model._xyz @ pose_correction[:3, :3].transpose(-1, -2) + pose_correction[:3, 3].unsqueeze(-2)
                             submap_start_idx = self.new_submap_frame_ids[submap_id]
                             submap_end_idx = frame_id - 1
                         else:
                             gaussian_model_prev, submap_start_idx, submap_end_idx = load_gaussian_from_submap_ckpt(submap_id, self.output_path, self.opt)
-                            # gaussian_model_prev._xyz = gaussian_model_prev._xyz @ pose_correction[:3, :3].transpose(-1, -2) + pose_correction[:3, 3].unsqueeze(-2)
-                            # # TODO: Do I also need to rotate the covariance?
-                            # gaussian_params = gaussian_model_prev.capture_dict()
-                            # submap_ckpt = {
-                            #     "gaussian_params": gaussian_params,
-                            #     "submap_keyframes": sorted(list(self.keyframes_info.keys()))
-                            # }
-                            # save_dict_to_ckpt(
-                            #     submap_ckpt, f"{str(submap_id).zfill(6)}.ckpt", directory=self.output_path / "submaps")
+                            gaussian_model_prev._xyz = gaussian_model_prev._xyz @ pose_correction[:3, :3].transpose(-1, -2) + pose_correction[:3, 3].unsqueeze(-2)
+                            # TODO: Do I also need to rotate the covariance?
+                            gaussian_params = gaussian_model_prev.capture_dict()
+                            submap_ckpt = {
+                                "gaussian_params": gaussian_params,
+                                "submap_keyframes": sorted(list(self.keyframes_info.keys()))
+                            }
+                            save_dict_to_ckpt(
+                                submap_ckpt, f"{str(submap_id).zfill(6)}.ckpt", directory=self.output_path / "submaps")
                             # TODO: torch.cuda.empty_cache()?
                             del gaussian_model_prev
                             # modify the poses in one submap TODO: interpolation?
