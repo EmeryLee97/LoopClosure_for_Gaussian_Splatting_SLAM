@@ -179,10 +179,10 @@ class GaussianSLAM(object):
                             loop_vertex = self.pose_graph.objective.get_optim_var(f"VERTEX_SE3__{str(loop_idx).zfill(6)}")
                         current_vertex = self.pose_graph.objective.get_optim_var(f"VERTEX_SE3__{str(self.submap_id).zfill(6)}")
                         self.pose_graph.logger.vis_submaps_overlap(
-                        loop_gaussian_model, loop_vertex.tensor.to('cuda'), loop_idx,
-                        current_gaussian_model, current_vertex.tensor.to('cuda'), self.submap_id,
-                        self.output_path / "blender_after"
-                    )
+                            loop_gaussian_model, loop_vertex.tensor.squeeze().to('cuda'), loop_idx,
+                            current_gaussian_model, current_vertex.tensor.squeeze().to('cuda'), self.submap_id,
+                            self.output_path / "blender_after"
+                        )
                     #----------------------------------------------------------------------------------------
                     for pose_key, pose_val in optimize_info.best_solution.items():
                         submap_id = get_id_from_string(pose_key)
