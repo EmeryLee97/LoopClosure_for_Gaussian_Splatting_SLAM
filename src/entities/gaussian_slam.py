@@ -162,11 +162,13 @@ class GaussianSLAM(object):
                     self.pose_graph.create_loop_constraint(
                         current_gaussian_model, loop_gaussian_model, loop_idx, self.new_submap_frame_ids, self.estimated_c2ws, loop_weight
                     )
+                    #----------------------------------------------------------------------------------------
                     # self.pose_graph.logger.vis_submaps_overlap(
                     #     loop_gaussian_model, torch.eye(4, device='cuda'), loop_idx,
                     #     current_gaussian_model, torch.eye(4, device='cuda'), self.submap_id,
                     #     self.output_path / "blender_before"
                     # )
+                    #----------------------------------------------------------------------------------------
                 if len(loop_idx_list) != 0:
                     optimize_info = self.pose_graph.optimize()
                     print(optimize_info)
@@ -236,7 +238,7 @@ class GaussianSLAM(object):
             # Reinitialize gaussian model for new segment
             if self.should_start_new_submap(frame_id):
                 if self.optimize_with_loop_closure:
-                    self.pose_graph_optimization(gaussian_model)
+                    self.pose_graph_optimization(frame_id, gaussian_model)
 
                 save_dict_to_ckpt(self.estimated_c2ws[:frame_id + 1], "estimated_c2w.ckpt", directory=self.output_path)
                 # self.submap += 1 = happens here, put everything before
