@@ -140,7 +140,7 @@ class GaussianSLAM(object):
         self.submap_id += 1
         return gaussian_model
 
-    def pose_graph_optimization(self, current_gaussian_model, odometry_weight=1.0, loop_weight=1.0) -> None:
+    def pose_graph_optimization(self, frame_id, current_gaussian_model, odometry_weight=1.0, loop_weight=1.0) -> None:
         """ When a submap is finished, pgo should be trigered in 3 steps:
         1. add odometry constraint between the current and the last global keyframes to pose graph
         2. add loop constraint between the current and several past global keyframes to pose graph
@@ -190,19 +190,23 @@ class GaussianSLAM(object):
                         # modify the 3d Gaussians from checkpoints and save them again
                         pose_correction = torch.eye(4, device='cuda')
                         pose_correction[:3, :] = pose_val.squeeze().to('cuda')
-                        gaussian_model_prev, submap_start_idx, submap_end_idx = load_gaussian_from_submap_ckpt(submap_id, self.output_path, self.opt)
-                        # gaussian_model_prev._xyz = gaussian_model_prev._xyz @ pose_correction[:3, :3].transpose(-1, -2) + pose_correction[:3, 3].unsqueeze(-2)
-                        # # TODO: Do I also need to rotate the covariance?
-                        # gaussian_params = gaussian_model_prev.capture_dict()
-                        # submap_ckpt = {
-                        #     "gaussian_params": gaussian_params,
-                        #     "submap_keyframes": sorted(list(self.keyframes_info.keys()))
-                        # }
-                        # save_dict_to_ckpt(
-                        #     submap_ckpt, f"{str(submap_id).zfill(6)}.ckpt", directory=self.output_path / "submaps")
-                        # TODO: torch.cuda.empty_cache()?
-                        del gaussian_model_prev
-                        # modify the poses in one submap TODO: interpolation?
+                        if submap_id == self.submap_id:
+                            submap_start_idx = self.new_submap_frame_ids[submap_id]
+                            submap_end_idx = frame_id - 1
+                        else:
+                            gaussian_model_prev, submap_start_idx, submap_end_idx = load_gaussian_from_submap_ckpt(submap_id, self.output_path, self.opt)
+                            # gaussian_model_prev._xyz = gaussian_model_prev._xyz @ pose_correction[:3, :3].transpose(-1, -2) + pose_correction[:3, 3].unsqueeze(-2)
+                            # # TODO: Do I also need to rotate the covariance?
+                            # gaussian_params = gaussian_model_prev.capture_dict()
+                            # submap_ckpt = {
+                            #     "gaussian_params": gaussian_params,
+                            #     "submap_keyframes": sorted(list(self.keyframes_info.keys()))
+                            # }
+                            # save_dict_to_ckpt(
+                            #     submap_ckpt, f"{str(submap_id).zfill(6)}.ckpt", directory=self.output_path / "submaps")
+                            # TODO: torch.cuda.empty_cache()?
+                            del gaussian_model_prev
+                            # modify the poses in one submap TODO: interpolation?
                         for frame_idx in range(submap_start_idx, submap_end_idx+1):
                             pose_correction = pose_correction.to(self.estimated_c2ws[frame_idx].device)
                             self.estimated_c2ws[frame_idx] = pose_correction @ self.estimated_c2ws[frame_idx]
