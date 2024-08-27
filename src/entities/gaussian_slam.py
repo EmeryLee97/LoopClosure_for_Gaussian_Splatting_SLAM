@@ -142,7 +142,7 @@ class GaussianSLAM(object):
         self.submap_id += 1
         return gaussian_model
 
-    def pose_graph_optimization(self, frame_id, current_gaussian_model: GaussianModel, odometry_weight=1.0, loop_weight=1.0) -> None:
+    def pose_graph_optimization(self, frame_id, current_gaussian_model: GaussianModel) -> None:
         """ When a submap is finished, pgo should be trigered in 3 steps:
         1. add odometry constraint between the current and the last global keyframes to pose graph
         2. add loop constraint between the current and several past global keyframes to pose graph
@@ -152,7 +152,7 @@ class GaussianSLAM(object):
         if self.submap_id > 0:
             last_gaussian_model, _ = load_gaussian_from_submap_ckpt(self.submap_id-1, self.output_path, self.opt)
             self.pose_graph.create_odometry_constraint(
-                current_gaussian_model, last_gaussian_model, self.new_submap_frame_ids, self.estimated_c2ws, odometry_weight
+                current_gaussian_model, last_gaussian_model, self.new_submap_frame_ids, self.estimated_c2ws
             )
             if self.submap_id > 1:
                 min_score = self.local_feature_index.get_min_score(netvlad_feature=netvlad_feature)
@@ -162,7 +162,7 @@ class GaussianSLAM(object):
                 for loop_idx in loop_idx_list:
                     loop_gaussian_model, _ = load_gaussian_from_submap_ckpt(loop_idx, self.output_path, self.opt)
                     self.pose_graph.create_loop_constraint(
-                        current_gaussian_model, loop_gaussian_model, loop_idx, self.new_submap_frame_ids, self.estimated_c2ws, loop_weight
+                        current_gaussian_model, loop_gaussian_model, loop_idx, self.new_submap_frame_ids, self.estimated_c2ws
                     )
                     #----------------------------------------------------------------------------------------
                     # self.pose_graph.logger.vis_submaps_overlap(

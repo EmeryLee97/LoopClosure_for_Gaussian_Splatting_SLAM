@@ -58,6 +58,8 @@ class GaussianSLAMPoseGraph:
         # self.opacity_threshold = config["opacity_threshold"]
         self.center_matching_threshold = config["center_matching_threshold"]
         self.downsample_num = config["downsample_number"]
+        self.odometry_weight = config["odometry_weight"]
+        self.loop_weight = config["loop_weight"]
         self.optimization_max_iterations = config["optimization_max_iterations"]
         self.optimization_step_size = config["optimization_step_size"]
         self.rel_err_tolerance = config["rel_err_tolerance"]
@@ -145,7 +147,6 @@ class GaussianSLAMPoseGraph:
             last_gaussian_model: GaussianModel,
             new_submap_frame_ids: List,
             estimated_c2ws: List, 
-            cost_weight=1.0,
         ) -> None:
         """ create an odometry constraint between the last submap and the current submap, and add it into pose graph.
         Each vertex is initialized as identity matrix, with name 'VERTEX_SE3__str(i).zfill(6)', where 'i' indicates it's 
@@ -176,7 +177,7 @@ class GaussianSLAMPoseGraph:
             self.center_matching_threshold
         )
         downsample_ids = downsample(match_idx_last, self.downsample_num)
-        odometry_edge = GaussianSLAMEdge(last_submap_id, current_submap_id, torch.eye(3, 4), cost_weight)
+        odometry_edge = GaussianSLAMEdge(last_submap_id, current_submap_id, torch.eye(3, 4), self.odometry_weight)
         print(f"Building odometry constraint between submap_{last_submap_id} and submap_{current_submap_id}")
         self.add_edge(
             last_vertex, current_vertex, odometry_edge, 
@@ -196,7 +197,6 @@ class GaussianSLAMPoseGraph:
         loop_submap_id: int, 
         new_submap_frame_ids: List, 
         estimated_c2ws: torch.Tensor,
-        cost_weight=1.0,
     ) -> None:
         """ create a loop constraint between the current submap and a submap that forms a loop with the current one, then
         add it into pose graph. Each vertex is initialized as identity matrix, with name 'VERTEX_SE3__str(i).zfill(6)', 
@@ -232,7 +232,7 @@ class GaussianSLAMPoseGraph:
             self.center_matching_threshold
         )
         downsample_ids = downsample(match_idx_loop, self.downsample_num)
-        loop_edge = GaussianSLAMEdge(loop_submap_id, current_submap_id, relative_pose, cost_weight)
+        loop_edge = GaussianSLAMEdge(loop_submap_id, current_submap_id, relative_pose, self.loop_weight)
         print(f"Building loop constraint between submap_{loop_submap_id} and submap{current_submap_id}")
         self.add_edge(
             loop_vertex, current_vertex, loop_edge, 
