@@ -263,10 +263,8 @@ class GaussianSLAM(object):
                     "opt_dict": opt_dict
                 }
                 # add the current local keyframe info the local faiss index
-                if self.submap_id > 1:
+                if self.optimize_with_loop_closure and self.submap_id > 1:
                     self.local_feature_index.add_to_index(self.dataset[frame_id][1])
 
-        # TODO: add another pgo at the end of 
-        # self.pose_graph_optimization(gaussian_model)
         save_dict_to_ckpt(self.estimated_c2ws[:frame_id + 1], "estimated_c2w.ckpt", directory=self.output_path)
 

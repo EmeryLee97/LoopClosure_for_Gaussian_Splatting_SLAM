@@ -41,9 +41,9 @@ pose_graph:
   opacity_threshold: 0.95
   center_matching_threshold: 0.005
   downsample_number: 500
-  optimization_max_iterations: 200
+  optimization_max_iterations: 500
   optimization_step_size: 0.005
-  rel_err_tolerance: 0.00005
+  rel_err_tolerance: 0.0001
   damping: 0.05
   track_best_solution: True
   verbose: True
