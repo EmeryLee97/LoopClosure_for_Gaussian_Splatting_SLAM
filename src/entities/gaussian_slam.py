@@ -146,8 +146,8 @@ class GaussianSLAM(object):
         submap_frame_id = self.new_submap_frame_ids[self.submap_id]
         print(f"Correcting submap {self.submap_id}, whose first frame id={submap_frame_id}")
         pose_gt = self.dataset[submap_frame_id][-1] # np.ndarray
-        pose_estimated = self.estimated_c2ws[submap_frame_id]
-        pose_correct = pose_gt @ pose_estimated.transpose()
+        pose_estimated = self.estimated_c2ws[submap_frame_id] # torch.Tensor
+        pose_correct = pose_gt @ torch2np(pose_estimated.transpose())
         quat_correct = R.from_matrix(pose_correct[:3, :3]).as_quat()
         quat_correct = np2torch(np.roll(quat_correct, 1)).to("cuda")
         for id in range(submap_frame_id, frame_id):
@@ -179,14 +179,12 @@ class GaussianSLAM(object):
             if self.should_start_new_submap(frame_id):
                 if self.optimize_with_loop_closure:
                     self.pose_graph_optimization(frame_id, gaussian_model)
-                    # TODO: important! re-train pose for new submap!!!
-                    #------------------------------------------------------------------
                     print("Pose graph optimization triggered, retracking the current global keyframe.")
                     estimated_c2w = self.tracker.track(
                         frame_id, gaussian_model,
                         torch2np(self.estimated_c2ws[torch.tensor([0, frame_id - 2, frame_id - 1])]))
                     self.estimated_c2ws[frame_id] = np2torch(estimated_c2w)
-                    #------------------------------------------------------------------
+
                 save_dict_to_ckpt(self.estimated_c2ws[:frame_id + 1], "estimated_c2w.ckpt", directory=self.output_path)
                 # self.submap += 1 = happens here, put everything before
                 gaussian_model = self.start_new_submap(frame_id, gaussian_model)
