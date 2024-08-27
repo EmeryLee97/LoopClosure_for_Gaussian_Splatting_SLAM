@@ -193,16 +193,16 @@ class GaussianSLAM(object):
                         submap_id = get_id_from_string(pose_key)
                         # ----------------------------------------------------------
                         pose_gt = self.dataset[self.new_submap_frame_ids[submap_id]][-1]
-                        rot_gt = pose_gt[0:3, 0:3]
+                        rot_gt = np2torch(pose_gt[0:3, 0:3])
                         rot_est = self.estimated_c2ws[self.new_submap_frame_ids[submap_id]]
-                        rot_opt = torch2np(pose_val)[0:3, 0:3] @ rot_est
+                        rot_opt = pose_val[0:3, 0:3] @ rot_est
                         print(f"Rotation error {submap_id} before: {torch.acos((torch.trace(torch.matmul(rot_est.t(), rot_gt)) - 1) / 2)}, after: {torch.acos((torch.trace(torch.matmul(rot_opt.t(), rot_gt)) - 1) / 2)}")
                         # ----------------------------------------------------------
                         # modify the 3d Gaussians from checkpoints and save them again
                         pose_correction = torch.eye(4, device='cuda')
                         pose_correction[:3, :] = pose_val.squeeze().to('cuda')
                         quaternion_correction = R.from_matrix(torch2np(pose_correction[:3, :3])).as_quat()
-                        quaternion_correction = np2torch(quaternion_correction).to("cuda")
+                        quaternion_correction = np2torch(np.roll(quaternion_correction, 1)).to("cuda")
                         if submap_id == self.submap_id:
                             current_gaussian_model._xyz = current_gaussian_model._xyz @ pose_correction[:3, :3].transpose(-1, -2) + pose_correction[:3, 3].unsqueeze(-2)
                             current_gaussian_model._xyz = current_gaussian_model._xyz.detach()
