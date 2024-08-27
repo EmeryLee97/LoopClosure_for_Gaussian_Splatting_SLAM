@@ -156,7 +156,8 @@ class GaussianSLAM(object):
         pose_correct = pose_correct.to("cuda")
         gaussian_model._xyz = gaussian_model._xyz @ pose_correct[:3, :3].transpose(0, 1) + pose_correct[:3, 3].unsqueeze(-2)
         gaussian_model._rotation = quaternion_multiplication(quat_correct, gaussian_model._rotation)
-
+        gaussian_model._xyz = gaussian_model._xyz.detach()
+        gaussian_model._rotation = gaussian_model._rotation.detach()
 
 
     def run(self) -> None:
