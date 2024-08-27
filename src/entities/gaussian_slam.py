@@ -150,9 +150,9 @@ class GaussianSLAM(object):
         pose_correct = pose_gt @ torch2np(pose_estimated.transpose(0, 1))
         quat_correct = R.from_matrix(pose_correct[:3, :3]).as_quat()
         quat_correct = np2torch(np.roll(quat_correct, 1)).to("cuda")
+        pose_correct = np2torch(pose_correct)
         for id in range(submap_frame_id, frame_id):
             self.estimated_c2ws[id] = pose_correct @ self.estimated_c2ws[id]
-        pose_correct = np2torch(pose_correct)
         gaussian_model._xyz = gaussian_model._xyz @ pose_correct[:3, :3].transpose(0, 1) + pose_correct[:3, 3].unsqueeze(-2)
         gaussian_model._rotation = quaternion_multiplication(quat_correct, gaussian_model._rotation)
 
