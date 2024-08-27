@@ -1,7 +1,7 @@
 import json
 import os
 from pathlib import Path
-from typing import Union, Tuple, Dict
+from typing import Union, Tuple, Dict, List
 
 import open3d as o3d
 import numpy as np
@@ -171,7 +171,7 @@ def load_submap_ckpt(submap_id: int, output_path: str, checkpoint_dir=None, opac
 
 def load_gaussian_from_submap_ckpt(
         submap_id: int, output_path: str, training_args, checkpoint_dir=None, device='cuda'
-    ) -> GaussianModel:
+    ) -> Tuple[GaussianModel, List]:
     if checkpoint_dir is None:
         checkpoint_dir = Path(output_path, "submaps")
     checkpoint_path = Path(checkpoint_dir, str(submap_id).zfill(6)+'.ckpt')
@@ -179,5 +179,5 @@ def load_gaussian_from_submap_ckpt(
 
     gaussian_model = GaussianModel(0)
     gaussian_model.restore_from_params(submap["gaussian_params"], training_args)
-    return gaussian_model, submap["submap_keyframes"][0], submap["submap_keyframes"][-1]
+    return gaussian_model, submap["submap_keyframes"]
 

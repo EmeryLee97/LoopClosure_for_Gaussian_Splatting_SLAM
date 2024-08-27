@@ -142,7 +142,7 @@ class GaussianSLAM(object):
         self.submap_id += 1
         return gaussian_model
 
-    def pose_graph_optimization(self, frame_id, current_gaussian_model, odometry_weight=1.0, loop_weight=1.0) -> None:
+    def pose_graph_optimization(self, frame_id, current_gaussian_model: GaussianModel, odometry_weight=1.0, loop_weight=1.0) -> None:
         """ When a submap is finished, pgo should be trigered in 3 steps:
         1. add odometry constraint between the current and the last global keyframes to pose graph
         2. add loop constraint between the current and several past global keyframes to pose graph
@@ -150,7 +150,7 @@ class GaussianSLAM(object):
         """
         netvlad_feature = self.loop_closure_detector.get_netvlad_feature(self.dataset[self.new_submap_frame_ids[self.submap_id]][1])
         if self.submap_id > 0:
-            last_gaussian_model, _, _ = load_gaussian_from_submap_ckpt(self.submap_id-1, self.output_path, self.opt)
+            last_gaussian_model, _ = load_gaussian_from_submap_ckpt(self.submap_id-1, self.output_path, self.opt)
             self.pose_graph.create_odometry_constraint(
                 current_gaussian_model, last_gaussian_model, self.new_submap_frame_ids, self.estimated_c2ws, odometry_weight
             )
@@ -160,7 +160,7 @@ class GaussianSLAM(object):
                 self.local_feature_index.reset()
                 _, loop_idx_list = self.loop_closure_detector.detect_knn(netvlad_feature=netvlad_feature, filter_threshold=min_score)
                 for loop_idx in loop_idx_list:
-                    loop_gaussian_model, _, _ = load_gaussian_from_submap_ckpt(loop_idx, self.output_path, self.opt)
+                    loop_gaussian_model, _ = load_gaussian_from_submap_ckpt(loop_idx, self.output_path, self.opt)
                     self.pose_graph.create_loop_constraint(
                         current_gaussian_model, loop_gaussian_model, loop_idx, self.new_submap_frame_ids, self.estimated_c2ws, loop_weight
                     )
@@ -177,7 +177,7 @@ class GaussianSLAM(object):
                     update_dict = {}
                     #----------------------------------------------------------------------------------------
                     # for loop_idx in loop_idx_list:
-                    #     loop_gaussian_model, _, _ = load_gaussian_from_submap_ckpt(loop_idx, self.output_path, self.opt)
+                    #     loop_gaussian_model, _ = load_gaussian_from_submap_ckpt(loop_idx, self.output_path, self.opt)
                     #     if loop_idx == 0:
                     #         loop_vertex = self.pose_graph.objective.get_aux_var(f"VERTEX_SE3__{str(loop_idx).zfill(6)}")
                     #     else:
@@ -197,7 +197,6 @@ class GaussianSLAM(object):
                         rot_est = self.estimated_c2ws[self.new_submap_frame_ids[submap_id]]
                         rot_opt = pose_val[0:3, 0:3] @ rot_est
                         print(f"Rotation error {submap_id} before: {torch.acos((torch.trace(torch.matmul(rot_est.t(), rot_gt)) - 1) / 2)}, after: {torch.acos((torch.trace(torch.matmul(rot_opt.t(), rot_gt)) - 1) / 2)}")
-                        # ----------------------------------------------------------
                         # modify the 3d Gaussians from checkpoints and save them again
                         pose_correction = torch.eye(4, device='cuda')
                         pose_correction[:3, :] = pose_val.squeeze().to('cuda')
@@ -209,22 +208,24 @@ class GaussianSLAM(object):
                             current_gaussian_model._rotation = quaternion_multiplication(quaternion_correction, current_gaussian_model.get_rotation())
                             current_gaussian_model._rotation = current_gaussian_model._rotation.detach()
                             submap_start_idx = self.new_submap_frame_ids[submap_id]
-                            submap_end_idx = frame_id - 1
+                            submap_end_idx = frame_id
                         else:
-                            gaussian_model_prev, submap_start_idx, submap_end_idx = load_gaussian_from_submap_ckpt(submap_id, self.output_path, self.opt)
+                            gaussian_model_prev, submap_keyframes = load_gaussian_from_submap_ckpt(submap_id, self.output_path, self.opt)
                             gaussian_model_prev._xyz = gaussian_model_prev._xyz @ pose_correction[:3, :3].transpose(-1, -2) + pose_correction[:3, 3].unsqueeze(-2)
                             gaussian_model_prev._rotation = quaternion_multiplication(quaternion_correction, gaussian_model_prev.get_rotation())
                             gaussian_params = gaussian_model_prev.capture_dict()
+                            submap_start_idx = self.new_submap_frame_ids[submap_id]
+                            submap_end_idx = self.new_submap_frame_ids[submap_id+1]
                             submap_ckpt = {
                                 "gaussian_params": gaussian_params,
-                                "submap_keyframes": sorted(list(self.keyframes_info.keys()))
+                                "submap_keyframes": submap_keyframes,
                             }
                             save_dict_to_ckpt(
                                 submap_ckpt, f"{str(submap_id).zfill(6)}.ckpt", directory=self.output_path / "submaps")
                             # TODO: torch.cuda.empty_cache()?
                             del gaussian_model_prev
-                            # modify the poses in one submap TODO: interpolation?
-                        for frame_idx in range(submap_start_idx, submap_end_idx+1):
+
+                        for frame_idx in range(submap_start_idx, submap_end_idx):
                             pose_correction = pose_correction.to(self.estimated_c2ws[frame_idx].device)
                             self.estimated_c2ws[frame_idx] = pose_correction @ self.estimated_c2ws[frame_idx]
                         # reinitialize for next optimization
@@ -254,17 +255,14 @@ class GaussianSLAM(object):
             if self.should_start_new_submap(frame_id):
                 if self.optimize_with_loop_closure:
                     self.pose_graph_optimization(frame_id, gaussian_model)
-                    # TODO: important! re-train pose for new submap!!!
-                    #------------------------------------------------------------------
                     print("Pose graph optimization triggered, retracking the current global keyframe.")
                     estimated_c2w = self.tracker.track(
                         frame_id, gaussian_model,
                         torch2np(self.estimated_c2ws[torch.tensor([0, frame_id - 2, frame_id - 1])]))
                     self.estimated_c2ws[frame_id] = np2torch(estimated_c2w)
-                    #------------------------------------------------------------------
+                    
                 save_dict_to_ckpt(self.estimated_c2ws[:frame_id + 1], "estimated_c2w.ckpt", directory=self.output_path)
-                # self.submap += 1 = happens here, put everything before
-                gaussian_model = self.start_new_submap(frame_id, gaussian_model)
+                gaussian_model = self.start_new_submap(frame_id, gaussian_model) # self.submap+=1 happens here, put everything before
 
             if frame_id in self.mapping_frame_ids:
                 print("\nMapping frame", frame_id)
