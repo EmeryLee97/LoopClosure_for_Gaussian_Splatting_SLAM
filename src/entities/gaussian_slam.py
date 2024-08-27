@@ -144,10 +144,11 @@ class GaussianSLAM(object):
     
     def pose_graph_optimization(self, frame_id, gaussian_model:GaussianModel):
         submap_frame_id = self.new_submap_frame_ids[self.submap_id]
-        print(f"Correcting submap {self.submap_id}, whose first frame id={submap_frame_id}")
+        
         pose_gt = self.dataset[submap_frame_id][-1] # np.ndarray
         pose_estimated = self.estimated_c2ws[submap_frame_id] # torch.Tensor
         pose_correct = pose_gt @ torch2np(pose_estimated.transpose(0, 1))
+        print(f"Correcting submap {self.submap_id}, whose first frame id = {submap_frame_id}, correction matrix = {pose_correct}")
         quat_correct = R.from_matrix(pose_correct[:3, :3]).as_quat()
         quat_correct = np2torch(np.roll(quat_correct, 1)).to("cuda")
         pose_correct = np2torch(pose_correct)
@@ -155,7 +156,7 @@ class GaussianSLAM(object):
             self.estimated_c2ws[id] = pose_correct @ self.estimated_c2ws[id]
         pose_correct = pose_correct.to("cuda")
         gaussian_model._xyz = gaussian_model._xyz @ pose_correct[:3, :3].transpose(0, 1) + pose_correct[:3, 3].unsqueeze(-2)
-        gaussian_model._rotation = quaternion_multiplication(quat_correct, gaussian_model._rotation)
+        gaussian_model._rotation = quaternion_multiplication(quat_correct, gaussian_model.get_rotation())
         gaussian_model._xyz = gaussian_model._xyz.detach()
         gaussian_model._rotation = gaussian_model._rotation.detach()
 
