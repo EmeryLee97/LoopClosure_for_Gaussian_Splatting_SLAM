@@ -3,7 +3,7 @@ dataset_name: "tum_rgbd"
 checkpoint_path: null
 use_wandb: True
 optimize_with_loop_closure: True
-frame_limit: 320 # for debugging, set to -1 to disable
+frame_limit: -1 # for debugging, set to -1 to disable
 seed: 0
 mapping:
   new_submap_every: 50
