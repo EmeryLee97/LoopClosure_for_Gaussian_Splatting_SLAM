@@ -153,6 +153,7 @@ class GaussianSLAM(object):
         pose_correct = np2torch(pose_correct)
         for id in range(submap_frame_id, frame_id):
             self.estimated_c2ws[id] = pose_correct @ self.estimated_c2ws[id]
+        pose_correct = pose_correct.to("cuda")
         gaussian_model._xyz = gaussian_model._xyz @ pose_correct[:3, :3].transpose(0, 1) + pose_correct[:3, 3].unsqueeze(-2)
         gaussian_model._rotation = quaternion_multiplication(quat_correct, gaussian_model._rotation)
 
@@ -201,9 +202,6 @@ class GaussianSLAM(object):
                     "keyframe_id": len(self.keyframes_info.keys()),
                     "opt_dict": opt_dict
                 }
-                # add the current local keyframe info the local faiss index
-                if self.optimize_with_loop_closure and self.submap_id > 1:
-                    self.local_feature_index.add_to_index(self.dataset[frame_id][1])
 
         save_dict_to_ckpt(self.estimated_c2ws[:frame_id + 1], "estimated_c2w.ckpt", directory=self.output_path)
 
