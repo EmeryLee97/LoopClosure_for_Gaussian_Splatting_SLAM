@@ -150,7 +150,9 @@ class GaussianSLAM(object):
         pose_correct = pose_gt @ torch2np(pose_estimated.transpose(0, 1))
         print(f"Correcting submap {self.submap_id}, whose first frame id = {submap_frame_id}, correction matrix = {pose_correct}")
         quat_correct = R.from_matrix(pose_correct[:3, :3]).as_quat()
+        print(f"quaternion xyzw = {quat_correct}")
         quat_correct = np2torch(np.roll(quat_correct, 1)).to("cuda")
+        print(f"quaternion wxyz = {quat_correct}")
         pose_correct = np2torch(pose_correct)
         for id in range(submap_frame_id, frame_id):
             self.estimated_c2ws[id] = pose_correct @ self.estimated_c2ws[id]
