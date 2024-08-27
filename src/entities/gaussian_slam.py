@@ -245,7 +245,13 @@ class GaussianSLAM(object):
             if self.should_start_new_submap(frame_id):
                 if self.optimize_with_loop_closure:
                     self.pose_graph_optimization(frame_id, gaussian_model)
-
+                    # TODO: important! re-train pose for new submap!!!
+                    #------------------------------------------------------------------
+                    estimated_c2w = self.tracker.track(
+                        frame_id, gaussian_model,
+                        torch2np(self.estimated_c2ws[torch.tensor([0, frame_id - 2, frame_id - 1])]))
+                    self.estimated_c2ws[frame_id] = np2torch(estimated_c2w)
+                    #------------------------------------------------------------------
                 save_dict_to_ckpt(self.estimated_c2ws[:frame_id + 1], "estimated_c2w.ckpt", directory=self.output_path)
                 # self.submap += 1 = happens here, put everything before
                 gaussian_model = self.start_new_submap(frame_id, gaussian_model)
