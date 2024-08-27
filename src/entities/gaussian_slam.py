@@ -198,7 +198,9 @@ class GaussianSLAM(object):
                         quaternion_correction = np2torch(quaternion_correction).to("cuda")
                         if submap_id == self.submap_id:
                             current_gaussian_model._xyz = current_gaussian_model._xyz @ pose_correction[:3, :3].transpose(-1, -2) + pose_correction[:3, 3].unsqueeze(-2)
+                            current_gaussian_model._xyz = current_gaussian_model._xyz.detach()
                             current_gaussian_model._rotation = quaternion_multiplication(quaternion_correction, current_gaussian_model.get_rotation())
+                            current_gaussian_model._rotation = current_gaussian_model._rotation.detach()
                             submap_start_idx = self.new_submap_frame_ids[submap_id]
                             submap_end_idx = frame_id - 1
                         else:
