@@ -141,96 +141,21 @@ class GaussianSLAM(object):
             self.mapping_frame_ids.append(frame_id)
         self.submap_id += 1
         return gaussian_model
+    
+    def pose_graph_optimization(self, frame_id, gaussian_model:GaussianModel):
+        submap_frame_id = self.new_submap_frame_ids[self.submap_id]
+        print(f"Correcting submap {self.submap_id}, whose first frame id={submap_frame_id}")
+        pose_gt = self.dataset[submap_frame_id][-1] # np.ndarray
+        pose_estimated = self.estimated_c2ws[submap_frame_id]
+        pose_correct = pose_gt @ pose_estimated.transpose()
+        quat_correct = R.from_matrix(pose_correct[:3, :3]).as_quat()
+        quat_correct = np2torch(np.roll(quat_correct, 1)).to("cuda")
+        for id in range(submap_frame_id, frame_id):
+            self.estimated_c2ws[id] = pose_correct @ self.estimated_c2ws[id]
+        pose_correct = np2torch(pose_correct)
+        gaussian_model._xyz = gaussian_model._xyz @ pose_correct[:3, :3].transpose(0, 1) + pose_correct[:3, 3].unsqueeze(-2)
+        gaussian_model._rotation = quaternion_multiplication(quat_correct, gaussian_model._rotation)
 
-    def pose_graph_optimization(self, frame_id, current_gaussian_model, odometry_weight=1.0, loop_weight=1.0) -> None:
-        """ When a submap is finished, pgo should be trigered in 3 steps:
-        1. add odometry constraint between the current and the last global keyframes to pose graph
-        2. add loop constraint between the current and several past global keyframes to pose graph
-        3. optimize the pose graph with LM algorithm
-        """
-        netvlad_feature = self.loop_closure_detector.get_netvlad_feature(self.dataset[self.new_submap_frame_ids[self.submap_id]][1])
-        if self.submap_id > 0:
-            last_gaussian_model, _, _ = load_gaussian_from_submap_ckpt(self.submap_id-1, self.output_path, self.opt)
-            self.pose_graph.create_odometry_constraint(
-                current_gaussian_model, last_gaussian_model, self.new_submap_frame_ids, self.estimated_c2ws, odometry_weight
-            )
-            if self.submap_id > 1:
-                min_score = self.local_feature_index.get_min_score(netvlad_feature=netvlad_feature)
-                print(f"Minimum score of submap_{self.submap_id} = {min_score}")
-                self.local_feature_index.reset()
-                _, loop_idx_list = self.loop_closure_detector.detect_knn(netvlad_feature=netvlad_feature, filter_threshold=min_score)
-                for loop_idx in loop_idx_list:
-                    loop_gaussian_model, _, _ = load_gaussian_from_submap_ckpt(loop_idx, self.output_path, self.opt)
-                    self.pose_graph.create_loop_constraint(
-                        current_gaussian_model, loop_gaussian_model, loop_idx, self.new_submap_frame_ids, self.estimated_c2ws, loop_weight
-                    )
-                    #----------------------------------------------------------------------------------------
-                    # self.pose_graph.logger.vis_submaps_overlap(
-                    #     loop_gaussian_model, torch.eye(4, device='cuda'), loop_idx,
-                    #     current_gaussian_model, torch.eye(4, device='cuda'), self.submap_id,
-                    #     self.output_path / "blender_before"
-                    # )
-                    #----------------------------------------------------------------------------------------
-                if len(loop_idx_list) != 0:
-                    optimize_info = self.pose_graph.optimize()
-                    print(optimize_info)
-                    update_dict = {}
-                    #----------------------------------------------------------------------------------------
-                    # for loop_idx in loop_idx_list:
-                    #     loop_gaussian_model, _, _ = load_gaussian_from_submap_ckpt(loop_idx, self.output_path, self.opt)
-                    #     if loop_idx == 0:
-                    #         loop_vertex = self.pose_graph.objective.get_aux_var(f"VERTEX_SE3__{str(loop_idx).zfill(6)}")
-                    #     else:
-                    #         loop_vertex = self.pose_graph.objective.get_optim_var(f"VERTEX_SE3__{str(loop_idx).zfill(6)}")
-                    #     current_vertex = self.pose_graph.objective.get_optim_var(f"VERTEX_SE3__{str(self.submap_id).zfill(6)}")
-                        # self.pose_graph.logger.vis_submaps_overlap(
-                        #     loop_gaussian_model, loop_vertex.tensor.squeeze().to('cuda'), loop_idx,
-                        #     current_gaussian_model, current_vertex.tensor.squeeze().to('cuda'), self.submap_id,
-                        #     self.output_path / "blender_after"
-                        # )
-                    #----------------------------------------------------------------------------------------
-                    for pose_key, pose_val in optimize_info.best_solution.items():
-                        submap_id = get_id_from_string(pose_key)
-                        # ----------------------------------------------------------
-                        pose_gt = self.dataset[self.new_submap_frame_ids[submap_id]][-1]
-                        rot_gt = pose_gt[0:3, 0:3]
-                        rot_est = self.estimated_c2ws[self.new_submap_frame_ids[submap_id]]
-                        rot_opt = torch2np(pose_val)[0:3, 0:3] @ rot_est
-                        print(f"Rotation error {submap_id} before: {torch.acos((torch.trace(torch.matmul(rot_est.t(), rot_gt)) - 1) / 2)}, after: {torch.acos((torch.trace(torch.matmul(rot_opt.t(), rot_gt)) - 1) / 2)}")
-                        # ----------------------------------------------------------
-                        # modify the 3d Gaussians from checkpoints and save them again
-                        pose_correction = torch.eye(4, device='cuda')
-                        pose_correction[:3, :] = pose_val.squeeze().to('cuda')
-                        quaternion_correction = R.from_matrix(torch2np(pose_correction[:3, :3])).as_quat()
-                        quaternion_correction = np2torch(quaternion_correction).to("cuda")
-                        if submap_id == self.submap_id:
-                            current_gaussian_model._xyz = current_gaussian_model._xyz @ pose_correction[:3, :3].transpose(-1, -2) + pose_correction[:3, 3].unsqueeze(-2)
-                            current_gaussian_model._xyz = current_gaussian_model._xyz.detach()
-                            current_gaussian_model._rotation = quaternion_multiplication(quaternion_correction, current_gaussian_model.get_rotation())
-                            current_gaussian_model._rotation = current_gaussian_model._rotation.detach()
-                            submap_start_idx = self.new_submap_frame_ids[submap_id]
-                            submap_end_idx = frame_id - 1
-                        else:
-                            gaussian_model_prev, submap_start_idx, submap_end_idx = load_gaussian_from_submap_ckpt(submap_id, self.output_path, self.opt)
-                            gaussian_model_prev._xyz = gaussian_model_prev._xyz @ pose_correction[:3, :3].transpose(-1, -2) + pose_correction[:3, 3].unsqueeze(-2)
-                            gaussian_model_prev._rotation = quaternion_multiplication(quaternion_correction, gaussian_model_prev.get_rotation())
-                            gaussian_params = gaussian_model_prev.capture_dict()
-                            submap_ckpt = {
-                                "gaussian_params": gaussian_params,
-                                "submap_keyframes": sorted(list(self.keyframes_info.keys()))
-                            }
-                            save_dict_to_ckpt(
-                                submap_ckpt, f"{str(submap_id).zfill(6)}.ckpt", directory=self.output_path / "submaps")
-                            # TODO: torch.cuda.empty_cache()?
-                            del gaussian_model_prev
-                            # modify the poses in one submap TODO: interpolation?
-                        for frame_idx in range(submap_start_idx, submap_end_idx+1):
-                            pose_correction = pose_correction.to(self.estimated_c2ws[frame_idx].device)
-                            self.estimated_c2ws[frame_idx] = pose_correction @ self.estimated_c2ws[frame_idx]
-                        # reinitialize for next optimization
-                        update_dict[pose_key] = torch.eye(3, 4, device='cuda').unsqueeze(0)
-                    self.pose_graph.objective.update(update_dict)
-        self.loop_closure_detector.add_to_index(netvlad_feature=netvlad_feature)
 
 
     def run(self) -> None:
