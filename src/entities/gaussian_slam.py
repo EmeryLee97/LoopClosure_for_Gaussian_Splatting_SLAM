@@ -194,7 +194,7 @@ class GaussianSLAM(object):
                         # ----------------------------------------------------------
                         pose_gt = self.dataset[self.new_submap_frame_ids[submap_id]][-1]
                         rot_gt = np2torch(pose_gt[0:3, 0:3])
-                        rot_est = self.estimated_c2ws[self.new_submap_frame_ids[submap_id]]
+                        rot_est = self.estimated_c2ws[self.new_submap_frame_ids[submap_id]][:3, :3]
                         rot_opt = pose_val[0:3, 0:3] @ rot_est
                         print(f"Rotation error {submap_id} before: {torch.acos((torch.trace(torch.matmul(rot_est.t(), rot_gt)) - 1) / 2)}, after: {torch.acos((torch.trace(torch.matmul(rot_opt.t(), rot_gt)) - 1) / 2)}")
                         # modify the 3d Gaussians from checkpoints and save them again
