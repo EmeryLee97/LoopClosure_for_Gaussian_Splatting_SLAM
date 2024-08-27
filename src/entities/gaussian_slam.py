@@ -249,6 +249,7 @@ class GaussianSLAM(object):
                     self.pose_graph_optimization(frame_id, gaussian_model)
                     # TODO: important! re-train pose for new submap!!!
                     #------------------------------------------------------------------
+                    print("Pose graph optimization triggered, retracking the current global keyframe.")
                     estimated_c2w = self.tracker.track(
                         frame_id, gaussian_model,
                         torch2np(self.estimated_c2ws[torch.tensor([0, frame_id - 2, frame_id - 1])]))
