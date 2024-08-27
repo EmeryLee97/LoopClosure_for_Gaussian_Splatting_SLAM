@@ -52,4 +52,4 @@ pose_graph:
 loop_closure:
   netvlad_checkpoint_path: /home/stud/lxuh/LoopClosure_for_Gaussian_Splatting_SLAM/vgg16_netvlad_checkpoint/checkpoints/checkpoint.pth.tar
   encoder_name: "vgg16"
-  k_neighbours: 4
+  k_neighbours: 3
