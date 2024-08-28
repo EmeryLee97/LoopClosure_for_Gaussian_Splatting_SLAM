@@ -7,7 +7,7 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:1,VRAM:16G
 #SBATCH --mem=16G
-#SBATCH --partition=DEADLINEBIG
+#SBATCH --partition=NORMAL
 #SBATCH --time=24:00:00
 #SBATCH --mail-type=ALL
 #SBATCH --array=0-0  # number of scenes, 0-7 for Replica, 0-2 for TUM_RGBD, 0-5 for ScanNet, 0-4 for ScanNet++
