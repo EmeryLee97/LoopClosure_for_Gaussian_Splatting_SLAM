@@ -37,7 +37,7 @@ cam:
   crop_edge: 16
   depth_scale: 5000.0
 pose_graph:
-  use_gt_relative_pose: True
+  use_gt_relative_pose: False
   opacity_threshold: 0.95
   center_matching_threshold: 0.005
   downsample_number: 500

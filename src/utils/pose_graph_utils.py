@@ -140,7 +140,7 @@ def compute_relative_pose(
         current_transformation: np.ndarray=None,
         voxel_size=0.05,
         distance_threshold=0.05
-    ) -> np.ndarray:
+    ) -> Tuple[np.ndarray, np.ndarray]:
     """ Caluculate the relative pose between two cameras using mean positions of Gaussian clouds
     inside the camera frustum, following a corse-to-fine process.
     """

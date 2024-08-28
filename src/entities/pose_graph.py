@@ -11,9 +11,10 @@ from src.entities.logger import Logger
 from src.entities.datasets import BaseDataset
 from src.utils.gaussian_model_utils import SH2RGB
 
-from src.utils.utils import np2torch, np2ptcloud
+from src.utils.utils import np2torch, torch2np, np2ptcloud
 from src.utils.mapper_utils import compute_camera_frustum_corners, compute_frustum_point_ids
-from src.utils.pose_graph_utils import error_fn_dense_gaussian_alignment, match_gaussian_means, downsample
+from src.utils.pose_graph_utils import error_fn_dense_gaussian_alignment, match_gaussian_means, \
+                                        downsample, compute_relative_pose
 
 
 class GaussianSLAMEdge:
@@ -223,14 +224,23 @@ class GaussianSLAMPoseGraph:
             current_correction_pose_gt = np2torch(self.dataset[current_submap_frame_id][-1]) @ estimated_c2ws[current_submap_frame_id].inverse()
             loop_correction_pose_gt = np2torch(self.dataset[loop_submap_frame_id][-1]) @ estimated_c2ws[loop_submap_frame_id].inverse()
             relative_pose = current_correction_pose_gt @ loop_correction_pose_gt.inverse()
-        else:
-            raise NotImplementedError()
-        match_idx_loop, match_idx_current = match_gaussian_means(
+            match_idx_loop, match_idx_current = match_gaussian_means(
             loop_gaussian_model.get_xyz()[loop_reused_pts_ids], # TODO: should I detach them from the graph?
             current_gaussian_model.get_xyz()[current_reused_pts_ids], 
             relative_pose.to('cuda'), 
             self.center_matching_threshold
         )
+        else:
+            relative_pose, corres_set = compute_relative_pose(
+                np2ptcloud(torch2np(loop_gaussian_model.get_xyz()[loop_reused_pts_ids])),
+                np2ptcloud(torch2np(current_gaussian_model.get_xyz()[current_reused_pts_ids])),
+                np.eye(4), 
+                voxel_size=self.center_matching_threshold, 
+                distance_threshold=self.center_matching_threshold
+            )
+            match_idx_loop = corres_set[:, 0].tolist()
+            match_idx_current = corres_set[:, 1].tolist()
+
         downsample_ids = downsample(match_idx_loop, self.downsample_num)
         loop_edge = GaussianSLAMEdge(loop_submap_id, current_submap_id, relative_pose, self.loop_weight)
         print(f"Building loop constraint between submap_{loop_submap_id} and submap{current_submap_id}")
