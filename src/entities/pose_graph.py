@@ -55,7 +55,7 @@ class GaussianSLAMPoseGraph:
         self.objective = th.Objective()
         self.objective.to(self.device)
 
-        self.use_gt_relative_pose = config["use_gt_relative_pose"]
+        self.use_gt_relative_pose = config["gt_relative_pose"]
         # self.opacity_threshold = config["opacity_threshold"]
         self.center_matching_threshold = config["center_matching_threshold"]
         self.downsample_num = config["downsample_number"]
@@ -238,6 +238,7 @@ class GaussianSLAMPoseGraph:
                 voxel_size=self.center_matching_threshold, 
                 distance_threshold=self.center_matching_threshold
             )
+            relative_pose = np2torch(relative_pose)
             match_idx_loop = corres_set[:, 0].tolist()
             match_idx_current = corres_set[:, 1].tolist()
 
