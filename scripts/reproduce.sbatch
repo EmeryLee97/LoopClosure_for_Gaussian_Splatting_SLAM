@@ -3,11 +3,11 @@
 #SBATCH --output=/home/stud/lxuh/storage/user/lxuh/output/logs/%A_%a.log  # please change accordingly
 #SBATCH --output=/home/stud/lxuh/storage/user/lxuh/output/logs/%A_%a.log   # please change accordingly
 #SBATCH --nodes=1
-#SBATCH --nodelist=node1,node3,node11,node12,node14,node17,node18
+#SBATCH --nodelist=node1
 #SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:1,VRAM:16G
 #SBATCH --mem=16G
-#SBATCH --partition=NORMAL
+#SBATCH --partition=DEADLINEBIG
 #SBATCH --time=24:00:00
 #SBATCH --mail-type=ALL
 #SBATCH --array=0-0  # number of scenes, 0-7 for Replica, 0-2 for TUM_RGBD, 0-5 for ScanNet, 0-4 for ScanNet++
