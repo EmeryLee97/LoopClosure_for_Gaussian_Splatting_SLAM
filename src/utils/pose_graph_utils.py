@@ -55,16 +55,16 @@ def match_gaussian_means(pts_1: torch.Tensor, pts_2: torch.Tensor, transformatio
     return res_list_1, res_list_2
 
 
+def build_covariance_from_scaling_rotation(scaling, scaling_modifier, rotation):
+    L = build_scaling_rotation(scaling_modifier * scaling, rotation)
+    return L @ L.transpose(-2, -1)
+
+
 def modified_sigmoid(tensor: torch.Tensor, k=5) -> torch.Tensor:
     """ A modified version of sigmoid function which only accepts non-negative inputs, and return values are limited
     between 0 and 1. Modify k to get different curvatures 
     """
     return 2.0 / (1 + torch.exp(k * tensor))
-
-
-def build_covariance_from_scaling_rotation(scaling, scaling_modifier, rotation):
-    L = build_scaling_rotation(scaling_modifier * scaling, rotation)
-    return L @ L.transpose(-2, -1)
 
 
 def hellinger_distance(
@@ -77,7 +77,7 @@ def hellinger_distance(
         gaussian_scaling_i, gaussian_scaling_j: scaling part of covariance matrix, represented as 3d vectors, shape = [..., 3]
         gaussian_rotation_i, gaussian_rotation_j: rotation part of covariance matrix, represented as quaternions, shape = [..., 4]
     Returns:
-        Squared Hellinger distance of two Gaussian distributions, limited in [0, 1]
+        Squared Hellinger distance of two Gaussian distributions, ranges in [0, 1]
     """
     gaussian_covariance_mean = (gaussian_covariance_i + gaussian_covariance_j) / 2 
     det_gaussian_covariance_i = torch.linalg.det(gaussian_covariance_i)
