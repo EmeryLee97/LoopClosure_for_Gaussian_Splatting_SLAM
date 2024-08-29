@@ -77,7 +77,8 @@ class GaussianSLAMPoseGraph:
             gaussian_scaling_i: torch.Tensor, 
             gaussian_rotation_i: torch.Tensor, 
             gaussian_color_i: torch.Tensor,
-            gaussian_xyz_j: torch.Tensor, 
+            gaussian_xyz_j: torch.Tensor,
+            gaussian_rotation_j: torch.Tensor, 
             gaussian_color_j: torch.Tensor,
         ) -> None:
         """ add an odometry edge or loop edge to the objective """
@@ -87,6 +88,7 @@ class GaussianSLAMPoseGraph:
         gaussian_rotation_i_th = th.Variable(tensor=gaussian_rotation_i.unsqueeze(0)) # (1, num_gs, 4)
         gaussian_color_i_th = th.Variable(tensor=gaussian_color_i.squeeze().unsqueeze(0)) # (1, num_gs, 3)
         gaussian_xyz_j_th = th.Variable(tensor=gaussian_xyz_j.unsqueeze(0)) # (1, num_gs, 3)
+        gaussian_rotation_j_th = th.Variable(tensor=gaussian_rotation_i.unsqueeze(0)) # (1, num_gs, 4)
         gaussian_color_j_th = th.Variable(tensor=gaussian_color_j.squeeze().unsqueeze(0)) # (1, num_gs, 3)
 
         gaussian_xyz_i_th.to(self.device)
@@ -94,6 +96,7 @@ class GaussianSLAMPoseGraph:
         gaussian_rotation_i_th.to(self.device)
         gaussian_color_i_th.to(self.device)
         gaussian_xyz_j_th.to(self.device)
+        gaussian_rotation_j_th.to(self.device)
         gaussian_color_j_th.to(self.device)
         vertex_i.to(self.device)
         vertex_j.to(self.device)
@@ -102,11 +105,11 @@ class GaussianSLAMPoseGraph:
         if edge.vertex_idx_i == 0:
             optim_vars = [vertex_j, ]
             aux_vars = [vertex_i, gaussian_xyz_i_th, gaussian_scaling_i_th, gaussian_rotation_i_th, 
-                        gaussian_color_i_th, gaussian_xyz_j_th, gaussian_color_j_th]
+                        gaussian_color_i_th, gaussian_xyz_j_th, gaussian_rotation_j_th, gaussian_color_j_th]
         else:
             optim_vars = [vertex_i, vertex_j]
             aux_vars = [gaussian_xyz_i_th, gaussian_scaling_i_th, gaussian_rotation_i_th, 
-                        gaussian_color_i_th, gaussian_xyz_j_th, gaussian_color_j_th]
+                        gaussian_color_i_th, gaussian_xyz_j_th, gaussian_rotation_j_th, gaussian_color_j_th]
 
         if self._requires_auto_grad:
             cost_fn = th.AutoDiffCostFunction(
@@ -187,6 +190,7 @@ class GaussianSLAMPoseGraph:
             last_gaussian_model.get_rotation()[last_reused_pts_ids][match_idx_last][downsample_ids], 
             SH2RGB(last_gaussian_model.get_features()[last_reused_pts_ids][match_idx_last][downsample_ids]).clamp(0, 1),
             current_gaussian_model.get_xyz()[current_reused_pts_ids][match_idx_current][downsample_ids], 
+            current_gaussian_model.get_rotation()[current_reused_pts_ids][match_idx_current][downsample_ids],
             SH2RGB(current_gaussian_model.get_features()[current_reused_pts_ids][match_idx_current][downsample_ids]).clamp(0, 1),
         )
         print(f"Current error metric = {self.objective.error_metric()}")
@@ -252,6 +256,7 @@ class GaussianSLAMPoseGraph:
             loop_gaussian_model.get_rotation()[loop_reused_pts_ids][match_idx_loop][downsample_ids], 
             SH2RGB(loop_gaussian_model.get_features()[loop_reused_pts_ids][match_idx_loop][downsample_ids]).clamp(0, 1),
             current_gaussian_model.get_xyz()[current_reused_pts_ids][match_idx_current][downsample_ids], 
+            current_gaussian_model.get_rotation()[current_reused_pts_ids][match_idx_current][downsample_ids], 
             SH2RGB(current_gaussian_model.get_features()[current_reused_pts_ids][match_idx_current][downsample_ids]).clamp(0, 1)
         )
         print(f"Current error metric = {self.objective.error_metric()}")

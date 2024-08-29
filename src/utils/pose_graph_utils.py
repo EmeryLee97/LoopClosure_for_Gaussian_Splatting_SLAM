@@ -80,14 +80,13 @@ def hellinger_distance(
         Squared Hellinger distance of two Gaussian distributions, limited in [0, 1]
     """
     gaussian_covariance_mean = (gaussian_covariance_i + gaussian_covariance_j) / 2 
-    # det_gaussian_covariance_i = torch.linalg.det(gaussian_covariance_i)
-    # det_gaussian_covariance_j = torch.linalg.det(gaussian_covariance_j)
-    # det_gaussian_covariance_mean = torch.linalg.det(gaussian_covariance_mean)
+    det_gaussian_covariance_i = torch.linalg.det(gaussian_covariance_i)
+    det_gaussian_covariance_j = torch.linalg.det(gaussian_covariance_j)
+    det_gaussian_covariance_mean = torch.linalg.det(gaussian_covariance_mean)
     gaussian_xyz_diff = (gaussian_xyz_i - gaussian_xyz_j).unsqueeze(-1)
-    # coefficient = det_gaussian_covariance_i.pow(1/4) * det_gaussian_covariance_j.pow(1/4) / det_gaussian_covariance_mean.pow(1/2)
+    coefficient = det_gaussian_covariance_i.pow(1/4) * det_gaussian_covariance_j.pow(1/4) / det_gaussian_covariance_mean.pow(1/2)
     power = -1/8 * gaussian_xyz_diff.transpose(-2, -1) @ gaussian_covariance_mean.inverse() @ gaussian_xyz_diff
-    # h_distance = 1 - coefficient * torch.exp(power.squeeze())
-    h_distance = 1 - torch.exp(power.squeeze())
+    h_distance = 1 - coefficient * torch.exp(power.squeeze(-1, -2))
     return h_distance
 
 
@@ -95,29 +94,29 @@ def error_fn_dense_gaussian_alignment(optim_vars, aux_vars) -> torch.Tensor:
     """ This error function calculates the difference between two Gaussian clouds, considering their mean position,
         scaling, rotation and color.
     """
-    if len(optim_vars) == 1 and len(aux_vars) == 7:
+    if len(optim_vars) == 1:
         pose_j, = optim_vars
-        pose_i, gaussian_xyz_i, gaussian_scaling_i, gaussian_rotation_i, gaussian_color_i, gaussian_xyz_j, gaussian_color_j = aux_vars
-    elif len(optim_vars) == 2 and len(aux_vars) == 6:
+        pose_i, gaussian_xyz_i, gaussian_scaling_i, gaussian_rotation_i, gaussian_color_i, gaussian_xyz_j, gaussian_rotation_j, gaussian_color_j = aux_vars
+    elif len(optim_vars) == 2:
         pose_i, pose_j = optim_vars
-        gaussian_xyz_i, gaussian_scaling_i, gaussian_rotation_i, gaussian_color_i, gaussian_xyz_j, gaussian_color_j = aux_vars
+        gaussian_xyz_i, gaussian_scaling_i, gaussian_rotation_i, gaussian_color_i, gaussian_xyz_j, gaussian_rotation_j, gaussian_color_j = aux_vars
     else:
         raise ValueError(f"Wrong input error function size, got {len(optim_vars)} and {len(aux_vars)}")
 
-    scaling_factor = 1
-    num_gs = gaussian_xyz_i.tensor.shape[1]
-    gaussian_xyz_i_corrected = gaussian_xyz_i.tensor @ pose_i.rotation().tensor.transpose(-1, -2) + pose_i.translation().tensor.unsqueeze(-2)
-    gaussian_covariance_i = build_covariance_from_scaling_rotation(gaussian_scaling_i.tensor, scaling_factor, gaussian_rotation_i.tensor)
+    scale_factor = 1
+    gaussian_xyz_i_corrected = gaussian_xyz_i.tensor @ pose_i.rotation().tensor.transpose(-1, -2) + pose_i.translation().tensor.unsqueeze(-2) # (batch_size, num_gs, 3)
+    # gaussian_rotation_i_correct = quaternion_multiplication(pose_i.rotation().to_quaternion().unsqueeze(1), gaussian_rotation_i)
+    gaussian_covariance_i = build_covariance_from_scaling_rotation(gaussian_scaling_i.tensor, scale_factor, gaussian_rotation_i.tensor) # (batch_size, num_gs, 3, 3)
+    gaussian_covariance_i_corrected = pose_i.rotation().tensor.unsqueeze(1) @ gaussian_covariance_i @ pose_i.rotation().tensor.unsqueeze(1).transpose(-1, -2)
     gaussian_xyz_j_corrected = gaussian_xyz_j.tensor @ pose_j.rotation().tensor.transpose(-1, -2) + pose_j.translation().tensor.unsqueeze(-2)
+    # gaussian_rotation_j_correct = quaternion_multiplication(pose_j.rotation().to_quaternion().unsqueeze(1), gaussian_rotation_j)
+    gaussian_covariance_j = build_covariance_from_scaling_rotation(gaussian_scaling_i.tensor, scale_factor, gaussian_rotation_j.tensor)
+    gaussian_covariance_j_corrected = pose_j.rotation().tensor.unsqueeze(1) @ gaussian_covariance_j @ pose_j.rotation().tensor.unsqueeze(1).transpose(-1, -2)
 
-    h_distance = hellinger_distance(gaussian_xyz_i_corrected, gaussian_covariance_i, gaussian_xyz_j_corrected, gaussian_covariance_i) # (batch_size, num_gs)
-    color_diff = torch.norm(gaussian_color_i.tensor - gaussian_color_j.tensor, p=1, dim=-1) # (batch_size, num_gs)
+    h_distance = hellinger_distance(gaussian_xyz_i_corrected, gaussian_covariance_i_corrected, gaussian_xyz_j_corrected, gaussian_covariance_j_corrected) # (batch_size, num_gs)
+    color_diff = torch.norm(gaussian_color_i.tensor-gaussian_color_j.tensor, p=1, dim=-1) # (batch_size, num_gs)
     color_diff_sigmoid = modified_sigmoid(color_diff, k=8)
-    # color_mask = color_diff_sigmoid > 0.5
-    # num_valid_pair = color_mask.squeeze().sum()
-    return color_diff_sigmoid * h_distance.sqrt() / num_gs
-    # return color_diff_sigmoid * h_distance.sqrt() / (num_valid_pair+1)
-    # return color_diff_sigmoid * h_distance.sqrt()
+    return color_diff_sigmoid * h_distance.sqrt()
 
 
 def preprocess_point_cloud(pcd: o3d.geometry.PointCloud, voxel_size=0.05) -> o3d.geometry.PointCloud:
