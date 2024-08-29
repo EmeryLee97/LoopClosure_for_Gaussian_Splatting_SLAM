@@ -40,3 +40,20 @@ cam:
   cx: 599.5
   cy: 339.5
   depth_scale: 6553.5
+pose_graph:
+  gt_relative_pose: False
+  opacity_threshold: 0.95
+  center_matching_threshold: 0.005
+  downsample_number: 500
+  odometry_weight: 1.0
+  loop_weight: 1.0
+  optimization_max_iterations: 500
+  optimization_step_size: 0.005
+  rel_err_tolerance: 0.0001
+  damping: 0.05
+  track_best_solution: True
+  verbose: True
+loop_closure:
+  netvlad_checkpoint_path: /home/stud/lxuh/LoopClosure_for_Gaussian_Splatting_SLAM/vgg16_netvlad_checkpoint/checkpoints/checkpoint.pth.tar
+  encoder_name: "vgg16"
+  k_neighbours: 4
