@@ -76,18 +76,18 @@ echo "Finished at: $(date)"
 
 
 # Your command to run the experiment
-echo "Job for dataset: $dataset, scene: rgbd_dataset_freiburg2_xyz"
-echo "Starting on: $(date)"
-echo "Running on node: $(hostname)"
+# echo "Job for dataset: $dataset, scene: rgbd_dataset_freiburg2_xyz"
+# echo "Starting on: $(date)"
+# echo "Running on node: $(hostname)"
 
-srun python run_slam.py "${CONFIG_PATH}/rgbd_dataset_freiburg2_xyz.yaml" \
-                   --input_path "${INPUT_PATH}/rgbd_dataset_freiburg2_xyz" \
-                   --output_path "${OUTPUT_PATH}/${dataset}/${EXPERIMENT_NAME}/rgbd_dataset_freiburg2_xyz" \
-                   --group_name "${EXPERIMENT_NAME}" \
+# srun python run_slam.py "${CONFIG_PATH}/rgbd_dataset_freiburg2_xyz.yaml" \
+#                    --input_path "${INPUT_PATH}/rgbd_dataset_freiburg2_xyz" \
+#                    --output_path "${OUTPUT_PATH}/${dataset}/${EXPERIMENT_NAME}/rgbd_dataset_freiburg2_xyz" \
+#                    --group_name "${EXPERIMENT_NAME}" \
 
-echo "Job for scene rgbd_dataset_freiburg2_xyz completed."
-echo "Started at: $START_TIME"
-echo "Finished at: $(date)"
+# echo "Job for scene rgbd_dataset_freiburg2_xyz completed."
+# echo "Started at: $START_TIME"
+# echo "Finished at: $(date)"
 
 
 # Your command to run the experiment
