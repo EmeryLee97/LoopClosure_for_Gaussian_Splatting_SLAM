@@ -3,7 +3,7 @@
 #SBATCH --output=/home/stud/lxuh/storage/user/lxuh/output/logs/%A_%a.log  # please change accordingly
 #SBATCH --output=/home/stud/lxuh/storage/user/lxuh/output/logs/%A_%a.log   # please change accordingly
 #SBATCH --nodes=1
-#SBATCH --nodelist=node1,node7,node9,node11,node12,node13,node14,node15,node16,node17,node18
+#SBATCH --nodelist=node12
 #SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:1,VRAM:24G
 #SBATCH --mem=16G
@@ -34,22 +34,72 @@ fi
 
 OUTPUT_PATH="output"
 CONFIG_PATH="configs/${dataset}"
-EXPERIMENT_NAME="debugging"
+EXPERIMENT_NAME="select hyperparameters"
 SCENE_NAME=${scenes[$SLURM_ARRAY_TASK_ID]}
 
 source ~/anaconda3/etc/profile.d/conda.sh # please change accordingly
 conda activate gslam
 
-echo "Job for dataset: $dataset, scene: $SCENE_NAME"
+# Build these libraries specifically for each GPU type, may need some 4-5 min, comment this part if you can run without it.
+pip install -v --upgrade --force-reinstall git+https://github.com/VladimirYugay/simple-knn.git@c7e51a06a4cd84c25e769fee29ab391fe5d5ff8d
+pip install -v --upgrade --force-reinstall git+https://github.com/VladimirYugay/gaussian_rasterizer.git@9c40173fcc8d9b16778a1a8040295bc2f9ebf129
+
+# echo "Job for dataset: $dataset, scene: $SCENE_NAME"
+# echo "Starting on: $(date)"
+# echo "Running on node: $(hostname)"
+
+# Your command to run the experiment
+# srun python run_slam.py "${CONFIG_PATH}/${SCENE_NAME}.yaml" \
+#                    --input_path "${INPUT_PATH}/${SCENE_NAME}" \
+#                    --output_path "${OUTPUT_PATH}/${dataset}/${EXPERIMENT_NAME}/${SCENE_NAME}" \
+#                    --group_name "${EXPERIMENT_NAME}" \
+
+# echo "Job for scene $SCENE_NAME completed."
+# echo "Started at: $START_TIME"
+# echo "Finished at: $(date)"
+
+
+
+# Your command to run the experiment
+echo "Job for dataset: $dataset, scene: rgbd_dataset_freiburg1_desk"
 echo "Starting on: $(date)"
 echo "Running on node: $(hostname)"
 
-# Your command to run the experiment
-srun python run_slam.py "${CONFIG_PATH}/${SCENE_NAME}.yaml" \
-                   --input_path "${INPUT_PATH}/${SCENE_NAME}" \
-                   --output_path "${OUTPUT_PATH}/${dataset}/${EXPERIMENT_NAME}/${SCENE_NAME}" \
+srun python run_slam.py "${CONFIG_PATH}/rgbd_dataset_freiburg1_desk.yaml" \
+                   --input_path "${INPUT_PATH}/rgbd_dataset_freiburg1_desk" \
+                   --output_path "${OUTPUT_PATH}/${dataset}/${EXPERIMENT_NAME}/rgbd_dataset_freiburg1_desk" \
                    --group_name "${EXPERIMENT_NAME}" \
 
-echo "Job for scene $SCENE_NAME completed."
+echo "Job for scene rgbd_dataset_freiburg1_desk completed."
+echo "Started at: $START_TIME"
+echo "Finished at: $(date)"
+
+
+# Your command to run the experiment
+echo "Job for dataset: $dataset, scene: rgbd_dataset_freiburg2_xyz"
+echo "Starting on: $(date)"
+echo "Running on node: $(hostname)"
+
+srun python run_slam.py "${CONFIG_PATH}/rgbd_dataset_freiburg2_xyz.yaml" \
+                   --input_path "${INPUT_PATH}/rgbd_dataset_freiburg2_xyz" \
+                   --output_path "${OUTPUT_PATH}/${dataset}/${EXPERIMENT_NAME}/rgbd_dataset_freiburg2_xyz" \
+                   --group_name "${EXPERIMENT_NAME}" \
+
+echo "Job for scene rgbd_dataset_freiburg2_xyz completed."
+echo "Started at: $START_TIME"
+echo "Finished at: $(date)"
+
+
+# Your command to run the experiment
+echo "Job for dataset: $dataset, scene: rgbd_dataset_freiburg3_long_office_household"
+echo "Starting on: $(date)"
+echo "Running on node: $(hostname)"
+
+srun python run_slam.py "${CONFIG_PATH}/rgbd_dataset_freiburg3_long_office_household.yaml" \
+                   --input_path "${INPUT_PATH}/rgbd_dataset_freiburg3_long_office_household" \
+                   --output_path "${OUTPUT_PATH}/${dataset}/${EXPERIMENT_NAME}/rgbd_dataset_freiburg3_long_office_household" \
+                   --group_name "${EXPERIMENT_NAME}" \
+
+echo "Job for scene rgbd_dataset_freiburg3_long_office_household completed."
 echo "Started at: $START_TIME"
 echo "Finished at: $(date)"
