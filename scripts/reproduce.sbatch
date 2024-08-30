@@ -41,8 +41,8 @@ source ~/anaconda3/etc/profile.d/conda.sh # please change accordingly
 conda activate gslam
 
 # Build these libraries specifically for each GPU type, may need some 4-5 min, comment this part if you can run without it.
-pip install -v --upgrade --force-reinstall git+https://github.com/VladimirYugay/simple-knn.git@c7e51a06a4cd84c25e769fee29ab391fe5d5ff8d
-pip install -v --upgrade --force-reinstall git+https://github.com/VladimirYugay/gaussian_rasterizer.git@9c40173fcc8d9b16778a1a8040295bc2f9ebf129
+# pip install -v --upgrade --force-reinstall git+https://github.com/VladimirYugay/simple-knn.git@c7e51a06a4cd84c25e769fee29ab391fe5d5ff8d
+# pip install -v --upgrade --force-reinstall git+https://github.com/VladimirYugay/gaussian_rasterizer.git@9c40173fcc8d9b16778a1a8040295bc2f9ebf129
 
 # echo "Job for dataset: $dataset, scene: $SCENE_NAME"
 # echo "Starting on: $(date)"
