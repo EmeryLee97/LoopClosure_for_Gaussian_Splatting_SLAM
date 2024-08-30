@@ -36,7 +36,7 @@ CONFIG_PATH="configs/${dataset}"
 EXPERIMENT_NAME="select hyperparameters"
 SCENE_NAME=${scenes[$SLURM_ARRAY_TASK_ID]}
 
-source ~/anaconda3/etc/profile.d/conda.sh # please change accordingly
+source ~/miniconda3/etc/profile.d/conda.sh # please change accordingly
 conda activate gslam
 
 # Build these libraries specifically for each GPU type, may takes 4-5 min, comment this part if you can run without it.
