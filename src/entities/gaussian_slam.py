@@ -27,6 +27,8 @@ from src.utils.vis_utils import *  # noqa - needed for debugging
 from src.utils.io_utils import load_gaussian_from_submap_ckpt
 from src.utils.pose_graph_utils import quaternion_multiplication
 
+from src.evaluation.evaluate_trajectory import pose_error
+
 class GaussianSLAM(object):
 
     def __init__(self, config: dict) -> None:
@@ -175,6 +177,9 @@ class GaussianSLAM(object):
                     optimize_info = self.pose_graph.optimize()
                     print(optimize_info)
                     update_dict = {}
+                    gt_poses = np.array(self.dataset.poses[:frame_id])
+                    est_poses = torch2np(self.estimated_c2ws[:frame_id])
+                    print(f"ATE_RMSE before: {pose_error(est_poses, gt_poses)['rmse']}")
                     #----------------------------------------------------------------------------------------
                     # for loop_idx in loop_idx_list:
                     #     loop_gaussian_model, _ = load_gaussian_from_submap_ckpt(loop_idx, self.output_path, self.opt)
@@ -191,12 +196,6 @@ class GaussianSLAM(object):
                     #----------------------------------------------------------------------------------------
                     for pose_key, pose_val in optimize_info.best_solution.items():
                         submap_id = get_id_from_string(pose_key)
-                        # ----------------------------------------------------------
-                        pose_gt = self.dataset[self.new_submap_frame_ids[submap_id]][-1]
-                        rot_gt = np2torch(pose_gt[0:3, 0:3])
-                        rot_est = self.estimated_c2ws[self.new_submap_frame_ids[submap_id]][:3, :3]
-                        rot_opt = pose_val.squeeze()[:3, :3] @ rot_est
-                        print(f"Rotation error {submap_id} before: {torch.acos((torch.trace(torch.matmul(rot_est.transpose(0, 1), rot_gt)) - 1) / 2)}, after: {torch.acos((torch.trace(torch.matmul(rot_opt.transpose(0, 1), rot_gt)) - 1) / 2)}")
                         # modify the 3d Gaussians from checkpoints and save them again
                         pose_correction = torch.eye(4, device='cuda')
                         pose_correction[:3, :] = pose_val.squeeze().to('cuda')
@@ -231,6 +230,9 @@ class GaussianSLAM(object):
                         # reinitialize for next optimization
                         update_dict[pose_key] = torch.eye(3, 4, device='cuda').unsqueeze(0)
                     self.pose_graph.objective.update(update_dict)
+                    # compare current ATE-RMSE
+                    corr_poses = torch2np(self.estimated_c2ws[:frame_id])
+                    print(f"ATE_RMSE before: {pose_error(corr_poses, gt_poses)['rmse']}")
         self.loop_closure_detector.add_to_index(netvlad_feature=netvlad_feature)
 
 
