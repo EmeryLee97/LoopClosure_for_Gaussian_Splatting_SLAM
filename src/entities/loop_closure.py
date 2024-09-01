@@ -12,6 +12,8 @@ from sklearn.neighbors import NearestNeighbors
 from typing import List, Dict, Union, Tuple
 from src.utils.utils import np2torch, torch2np
 
+torch.serialization.add_safe_globals([np.core.multiarray.scalar])
+
 """
 We thank Nanne https://github.com/Nanne/pytorch-NetVlad for the original design of the NetVLAD
 class which in itself was based on https://github.com/lyakaap/NetVLAD-pytorch/blob/master/netvlad.py,
