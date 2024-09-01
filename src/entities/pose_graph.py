@@ -80,6 +80,7 @@ class GaussianSLAMPoseGraph:
             gaussian_color_j: torch.Tensor,
         ) -> None:
         """ add an odometry edge or loop edge to the objective """
+        edge.relative_pose = edge.relative_pose.to(gaussian_xyz_i.device)
         gaussian_xyz_j = gaussian_xyz_i @ edge.relative_pose[:3, :3].transpose(-1, -2) + edge.relative_pose[:3, 3].unsqueeze(-2)
         num_matches = gaussian_xyz_i.shape[0]
 
