@@ -134,7 +134,7 @@ class LoopClosureDetector:
         self.model.add_module('encoder', encoder)
         self.model.add_module('pool', pool)
         self.model.to(self.device)
-        checkpoint = torch.load(self.ckpt_path, map_location=torch.device(self.device), weights_only=True)
+        checkpoint = torch.load(self.ckpt_path, map_location=torch.device(self.device), weights_only=False)
         self.model.load_state_dict(checkpoint['state_dict'])
         self.model.eval()
 
