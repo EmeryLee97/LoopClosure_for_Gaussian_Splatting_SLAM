@@ -175,7 +175,7 @@ def load_gaussian_from_submap_ckpt(
     if checkpoint_dir is None:
         checkpoint_dir = Path(output_path, "submaps")
     checkpoint_path = Path(checkpoint_dir, str(submap_id).zfill(6)+'.ckpt')
-    submap = torch.load(checkpoint_path, map_location=device)
+    submap = torch.load(checkpoint_path, map_location=device, weights_only=True)
 
     gaussian_model = GaussianModel(0)
     gaussian_model.restore_from_params(submap["gaussian_params"], training_args)
