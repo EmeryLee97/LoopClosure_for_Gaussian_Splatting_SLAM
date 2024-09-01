@@ -94,10 +94,10 @@ def error_fn_dense_gaussian_alignment(optim_vars, aux_vars) -> torch.Tensor:
     """
     if len(optim_vars) == 1:
         pose_j, = optim_vars
-        pose_i, gaussian_xyz_i, gaussian_scaling_i, gaussian_rotation_i, gaussian_color_i, gaussian_xyz_j, gaussian_color_j, k = aux_vars
+        pose_i, gaussian_xyz_i, gaussian_scaling_i, gaussian_rotation_i, gaussian_color_i, gaussian_xyz_j, gaussian_color_j = aux_vars
     elif len(optim_vars) == 2:
         pose_i, pose_j = optim_vars
-        gaussian_xyz_i, gaussian_scaling_i, gaussian_rotation_i, gaussian_color_i, gaussian_xyz_j, gaussian_color_j, k = aux_vars
+        gaussian_xyz_i, gaussian_scaling_i, gaussian_rotation_i, gaussian_color_i, gaussian_xyz_j, gaussian_color_j = aux_vars
     else:
         raise ValueError(f"Wrong input error function size, got {len(optim_vars)} and {len(aux_vars)}")
 
@@ -110,7 +110,7 @@ def error_fn_dense_gaussian_alignment(optim_vars, aux_vars) -> torch.Tensor:
 
     h_distance = hellinger_distance(gaussian_xyz_i_corrected, gaussian_covariance_i, gaussian_xyz_j_corrected, gaussian_covariance_i) # (batch_size, num_gs)
     color_diff = torch.norm(gaussian_color_i.tensor-gaussian_color_j.tensor, p=1, dim=-1) # (batch_size, num_gs)
-    color_diff_sigmoid = modified_sigmoid(color_diff, k=k)
+    color_diff_sigmoid = modified_sigmoid(color_diff, k=8)
     return color_diff_sigmoid * h_distance
 
 
