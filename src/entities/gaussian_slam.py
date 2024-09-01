@@ -179,7 +179,7 @@ class GaussianSLAM(object):
                     update_dict = {}
                     gt_poses = np.array(self.dataset.poses[:frame_id])
                     est_poses = torch2np(self.estimated_c2ws[:frame_id])
-                    print(f"ATE_RMSE before: {pose_error(est_poses, gt_poses)['rmse']}")
+                    print(f"ATE_RMSE before: {pose_error(est_poses[:, :3, 3], gt_poses[:, :3, 3])['rmse']}")
                     #----------------------------------------------------------------------------------------
                     # for loop_idx in loop_idx_list:
                     #     loop_gaussian_model, _ = load_gaussian_from_submap_ckpt(loop_idx, self.output_path, self.opt)
@@ -232,7 +232,7 @@ class GaussianSLAM(object):
                     self.pose_graph.objective.update(update_dict)
                     # compare current ATE-RMSE
                     corr_poses = torch2np(self.estimated_c2ws[:frame_id])
-                    print(f"ATE_RMSE before: {pose_error(corr_poses, gt_poses)['rmse']}")
+                    print(f"ATE_RMSE after: {pose_error(corr_poses[:, :3, 3], gt_poses[:, :3, 3])['rmse']}")
         self.loop_closure_detector.add_to_index(netvlad_feature=netvlad_feature)
 
 
