@@ -40,8 +40,8 @@ source ~/miniconda3/etc/profile.d/conda.sh # please change accordingly
 conda activate gslam
 
 # Build these libraries specifically for each GPU type, may takes 4-5 min, comment this part if you can run without it.
-pip install -v --upgrade --force-reinstall git+https://github.com/VladimirYugay/simple-knn.git@c7e51a06a4cd84c25e769fee29ab391fe5d5ff8d
-pip install -v --upgrade --force-reinstall /home/stud/lxuh/Gaussian-SLAM/simple-knn/.
+pip install -e /home/stud/lxuh/Gaussian-SLAM/gaussian_rasterizer/.
+pip install -e /home/stud/lxuh/Gaussian-SLAM/simple-knn/.
 
 echo "Job for dataset: $dataset, scene: $SCENE_NAME"
 echo "Starting on: $(date)"
