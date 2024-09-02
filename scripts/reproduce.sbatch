@@ -15,7 +15,7 @@
 dataset="Replica" # set dataset
 if [ "$dataset" == "Replica" ]; then
     # scenes=("room0" "room1" "room2" "office0" "office1" "office2" "office3" "office4")
-    scenes=("room0" "room1")
+    scenes=("room0" "room2")
     INPUT_PATH="/home/stud/lxuh/storage/user/lxuh/data/Replica"
 elif [ "$dataset" == "TUM_RGBD" ]; then
     # scenes=("rgbd_dataset_freiburg1_desk" "rgbd_dataset_freiburg2_xyz" "rgbd_dataset_freiburg3_long_office_household")
