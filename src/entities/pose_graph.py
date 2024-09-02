@@ -246,7 +246,7 @@ class GaussianSLAMPoseGraph:
             match_idx_current = corres_set[:, 1].tolist()
 
         downsample_ids = downsample(match_idx_loop, self.downsample_num)
-        if len(downsample_ids) == 0:
+        if len(downsample_ids) <= 10:
             print(f"No matching Gaussians found, false loop.")
             return
         loop_edge = GaussianSLAMEdge(loop_submap_id, current_submap_id, relative_pose, self.loop_weight)
