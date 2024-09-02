@@ -178,11 +178,11 @@ class GaussianSLAMPoseGraph:
             last_gaussian_model.get_xyz()[last_reused_pts_ids], 
             current_gaussian_model.get_xyz()[current_reused_pts_ids], 
             torch.eye(4, device="cuda"), 
-            self.center_matching_threshold
+            self.center_matching_threshold*4
         )
         if len(match_idx_last) == 0:
             return
-        downsample_ids = downsample(match_idx_last, self.downsample_num)
+        downsample_ids = downsample(match_idx_last, self.downsample_num*2)
         odometry_edge = GaussianSLAMEdge(last_submap_id, current_submap_id, torch.eye(3, 4), self.odometry_weight)
         print(f"Building odometry constraint between submap_{last_submap_id} and submap_{current_submap_id}")
         self.add_edge(

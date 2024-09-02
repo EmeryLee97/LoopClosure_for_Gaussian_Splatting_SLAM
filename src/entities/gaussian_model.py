@@ -202,7 +202,7 @@ class GaussianModel:
         ]
         self.optimizer = torch.optim.Adam(params, amsgrad=True)
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            self.optimizer, "min", factor=0.98, patience=10, verbose=False)
+            self.optimizer, "min", factor=0.98, patience=10)
 
     def construct_list_of_attributes(self):
         l = ["x", "y", "z", "nx", "ny", "nz"]
