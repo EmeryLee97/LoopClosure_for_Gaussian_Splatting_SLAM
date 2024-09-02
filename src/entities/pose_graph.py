@@ -57,7 +57,8 @@ class GaussianSLAMPoseGraph:
 
         self.use_gt_relative_pose = config["gt_relative_pose"]
         # self.opacity_threshold = config["opacity_threshold"]
-        self.center_matching_threshold = config["center_matching_threshold"]
+        self.odo_matching_threshold = config["odo_matching_threshold"]
+        self.loop_matching_threshold = config["loop_matching_threshold"]
         self.downsample_num = config["downsample_number"]
         self.odometry_weight = config["odometry_weight"]
         self.loop_weight = config["loop_weight"]
@@ -177,7 +178,7 @@ class GaussianSLAMPoseGraph:
             last_gaussian_model.get_xyz()[last_reused_pts_ids], 
             current_gaussian_model.get_xyz()[current_reused_pts_ids], 
             torch.eye(4, device="cuda"), 
-            self.center_matching_threshold*4
+            self.odo_matching_threshold
         )
         if len(match_idx_last) == 0:
             return
@@ -231,15 +232,15 @@ class GaussianSLAMPoseGraph:
             loop_gaussian_model.get_xyz()[loop_reused_pts_ids], # TODO: should I detach them from the graph?
             current_gaussian_model.get_xyz()[current_reused_pts_ids], 
             relative_pose.to('cuda'), 
-            self.center_matching_threshold
+            self.loop_matching_threshold
         )
         else:
             relative_pose, corres_set = compute_relative_pose(
                 np2ptcloud(torch2np(loop_gaussian_model.get_xyz()[loop_reused_pts_ids])),
                 np2ptcloud(torch2np(current_gaussian_model.get_xyz()[current_reused_pts_ids])),
                 np.eye(4), 
-                voxel_size=self.center_matching_threshold, 
-                distance_threshold=self.center_matching_threshold
+                voxel_size=self.loop_matching_threshold, 
+                distance_threshold=self.loop_matching_threshold
             )
             relative_pose = np2torch(relative_pose)
             match_idx_loop = corres_set[:, 0].tolist()

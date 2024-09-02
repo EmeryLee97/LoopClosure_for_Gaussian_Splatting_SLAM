@@ -44,7 +44,8 @@ cam:
 pose_graph:
   gt_relative_pose: False
   opacity_threshold: 0.95
-  center_matching_threshold: 0.005
+  odo_matching_threshold: 0.002
+  loop_matching_threshold: 0.0005
   downsample_number: 500
   odometry_weight: 1.0
   loop_weight: 1.0
