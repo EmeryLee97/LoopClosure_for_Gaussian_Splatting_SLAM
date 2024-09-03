@@ -51,7 +51,7 @@ pose_graph:
   loop_weight: 1.0
   optimization_max_iterations: 500
   optimization_step_size: 0.001
-  rel_err_tolerance: 0.0001
+  rel_err_tolerance: 0.0005
   damping: 0.05
   track_best_solution: True
   verbose: True
