@@ -189,6 +189,10 @@ class LoopClosureDetector:
         if self.get_index_length()-1 in idx_list:
             idx_list.remove(self.get_index_length()-1)
 
+        # cause bug here, will be removed later
+        if 0 in idx_list:
+            idx_list.remove(0)
+
         if add_to_index:
             self.add_to_index(netvlad_feature=netvlad_feature)
         return score_list, idx_list
