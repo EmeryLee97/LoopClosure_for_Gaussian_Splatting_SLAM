@@ -56,7 +56,6 @@ class GaussianSLAMPoseGraph:
         self.objective.to(self.device)
 
         self.use_gt_relative_pose = config["gt_relative_pose"]
-        self.color_factor = config["color_factor"]
         # self.opacity_threshold = config["opacity_threshold"]
         self.odo_matching_threshold = config["odo_matching_threshold"]
         self.loop_matching_threshold = config["loop_matching_threshold"]
@@ -106,11 +105,11 @@ class GaussianSLAMPoseGraph:
         if edge.vertex_idx_i == 0:
             optim_vars = [vertex_j, ]
             aux_vars = [vertex_i, gaussian_xyz_i_th, gaussian_scaling_i_th, gaussian_rotation_i_th, 
-                        gaussian_color_i_th, gaussian_xyz_j_th, gaussian_color_j_th, self.color_factor]
+                        gaussian_color_i_th, gaussian_xyz_j_th, gaussian_color_j_th]
         else:
             optim_vars = [vertex_i, vertex_j]
             aux_vars = [gaussian_xyz_i_th, gaussian_scaling_i_th, gaussian_rotation_i_th, 
-                        gaussian_color_i_th, gaussian_xyz_j_th, gaussian_color_j_th, self.color_factor]
+                        gaussian_color_i_th, gaussian_xyz_j_th, gaussian_color_j_th]
 
         if self._requires_auto_grad:
             cost_fn = th.AutoDiffCostFunction(

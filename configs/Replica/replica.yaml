@@ -43,7 +43,6 @@ cam:
   depth_scale: 6553.5
 pose_graph:
   gt_relative_pose: False
-  color_factor: 10
   opacity_threshold: 0.95
   odo_matching_threshold: 0.002
   loop_matching_threshold: 0.001

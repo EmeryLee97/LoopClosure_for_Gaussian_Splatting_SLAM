@@ -44,7 +44,6 @@ cam:
   crop_edge: 12
 pose_graph:
   gt_relative_pose: False
-  color_factor: 8
   opacity_threshold: 0.95
   odo_matching_threshold: 0.02
   loop_matching_threshold: 0.005
