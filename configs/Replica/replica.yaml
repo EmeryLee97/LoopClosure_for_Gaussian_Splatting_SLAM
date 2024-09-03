@@ -2,7 +2,7 @@ project_name: "Loop_Gaussian_SLAM_replica"
 dataset_name: "replica"
 checkpoint_path: null
 use_wandb: True
-optimize_with_loop_closure: True
+optimize_with_loop_closure: False
 frame_limit: -1 # for debugging, set to -1 to disable
 seed: 0
 mapping:
