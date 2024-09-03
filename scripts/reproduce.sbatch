@@ -40,9 +40,9 @@ SCENE_NAME=${scenes[$SLURM_ARRAY_TASK_ID]}
 source ~/miniconda3/etc/profile.d/conda.sh # please change accordingly
 conda activate gslam
 
-# Build these libraries specifically for each GPU type, may takes 4-5 min, comment this part if you can run without it.
-pip install -e /home/stud/lxuh/Gaussian-SLAM/gaussian_rasterizer/.
-pip install -e /home/stud/lxuh/Gaussian-SLAM/simple-knn/.
+# Build these libraries specifically for each GPU type, may takes 4-5 min, comment this part if you only work on one node.
+# pip install -e /home/stud/lxuh/Gaussian-SLAM/gaussian_rasterizer/.
+# pip install -e /home/stud/lxuh/Gaussian-SLAM/simple-knn/.
 
 echo "Job for dataset: $dataset, scene: $SCENE_NAME"
 echo "Starting on: $(date)"
