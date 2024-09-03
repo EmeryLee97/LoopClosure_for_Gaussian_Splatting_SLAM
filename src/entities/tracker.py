@@ -105,7 +105,7 @@ class Tracker(object):
 
         return color_loss, depth_loss, rendered_color, rendered_depth, alpha_mask
 
-    def track(self, frame_id: int, gaussian_model: GaussianModel, prev_c2ws: np.ndarray) -> np.ndarray:
+    def track(self, frame_id: int, gaussian_model: GaussianModel, prev_c2ws: np.ndarray, track_again=False) -> np.ndarray:
         """
         Updates the camera pose estimation for the current frame based on the provided image and depth, using either ground truth poses,
         constant speed assumption, or visual odometry.
@@ -156,7 +156,10 @@ class Tracker(object):
             color_loss.item() > self.init_err_ratio * np.median(self.frame_color_loss)
             or depth_loss.item() > self.init_err_ratio * np.median(self.frame_depth_loss)
         ):
-            num_iters *= 2
+            if track_again:
+                num_iters *= 3
+            else:
+                num_iters *= 2
             print(f"Higher initial loss, increasing num_iters to {num_iters}")
             if self.help_camera_initialization and self.odometry_type != "odometer":
                 _, last_image, last_depth, _ = self.dataset[frame_id - 1]

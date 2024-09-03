@@ -260,7 +260,7 @@ class GaussianSLAM(object):
                     print("Pose graph optimization triggered, retracking the current global keyframe.")
                     estimated_c2w = self.tracker.track(
                         frame_id, gaussian_model,
-                        torch2np(self.estimated_c2ws[torch.tensor([0, frame_id - 2, frame_id - 1])]))
+                        torch2np(self.estimated_c2ws[torch.tensor([0, frame_id - 2, frame_id - 1])]), track_again=True)
                     self.estimated_c2ws[frame_id] = np2torch(estimated_c2w)
                     
                 save_dict_to_ckpt(self.estimated_c2ws[:frame_id + 1], "estimated_c2w.ckpt", directory=self.output_path)
