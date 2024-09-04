@@ -34,7 +34,7 @@ fi
 
 OUTPUT_PATH="output"
 CONFIG_PATH="configs/${dataset}"
-EXPERIMENT_NAME="experiments_after_good_result"
+EXPERIMENT_NAME="experiments_after_good_result_loop2.5"
 SCENE_NAME=${scenes[$SLURM_ARRAY_TASK_ID]}
 
 source ~/miniconda3/etc/profile.d/conda.sh # please change accordingly
