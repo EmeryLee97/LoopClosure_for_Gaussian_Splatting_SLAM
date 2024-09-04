@@ -23,7 +23,7 @@ elif [ "$dataset" == "TUM_RGBD" ]; then
     INPUT_PATH="/home/stud/lxuh/storage/group/dataset_mirrors/tum_rgbd_benchmark"
 elif [ "$dataset" == "ScanNet" ]; then
     scenes=("scene0000_00" "scene0059_00" "scene0106_00" "scene0169_00" "scene0181_00" "scene0207_00")
-    INPUT_PATH="/home/stud/lxuh/storage/user/lxuh/data/ScanNet/"
+    INPUT_PATH="/home/stud/lxuh/storage/user/lxuh/data/ScanNet"
 elif [ "$dataset" == "ScanNetPP" ]; then
     scenes=("b20a261fdf" "8b5caf3398" "fb05e13ad1" "2e74812d00" "281bc17764")
     INPUT_PATH="/home/stud/lxuh/storage/user/lxuh/data/ScanNet++/data"
@@ -34,7 +34,7 @@ fi
 
 OUTPUT_PATH="output"
 CONFIG_PATH="configs/${dataset}"
-EXPERIMENT_NAME="select_hyperparameters"
+EXPERIMENT_NAME="experiments_after_good_result"
 SCENE_NAME=${scenes[$SLURM_ARRAY_TASK_ID]}
 
 source ~/miniconda3/etc/profile.d/conda.sh # please change accordingly
