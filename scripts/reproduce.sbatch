@@ -10,9 +10,9 @@
 #SBATCH --partition=NORMAL
 #SBATCH --time=24:00:00
 #SBATCH --mail-type=ALL
-#SBATCH --array=0-7 # number of scenes, 0-7 for Replica, 0-2 for TUM_RGBD, 0-5 for ScanNet, 0-4 for ScanNet++
+#SBATCH --array=0-5 # number of scenes, 0-7 for Replica, 0-2 for TUM_RGBD, 0-5 for ScanNet, 0-4 for ScanNet++
 
-dataset="Replica" # set dataset
+dataset="ScanNet" # set dataset
 if [ "$dataset" == "Replica" ]; then
     scenes=("room0" "room1" "room2" "office0" "office1" "office2" "office3" "office4")
     # scenes=("room0" "room1" "room2")
@@ -34,7 +34,7 @@ fi
 
 OUTPUT_PATH="output"
 CONFIG_PATH="configs/${dataset}"
-EXPERIMENT_NAME="experiments_after_good_result_loop2.5"
+EXPERIMENT_NAME="select_hyperparameters"
 SCENE_NAME=${scenes[$SLURM_ARRAY_TASK_ID]}
 
 source ~/miniconda3/etc/profile.d/conda.sh # please change accordingly
