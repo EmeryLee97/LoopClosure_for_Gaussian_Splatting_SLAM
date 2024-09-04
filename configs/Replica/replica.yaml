@@ -2,7 +2,7 @@ project_name: "Loop_Gaussian_SLAM_replica"
 dataset_name: "replica"
 checkpoint_path: null
 use_wandb: True
-optimize_with_loop_closure: False
+optimize_with_loop_closure: True
 frame_limit: -1 # for debugging, set to -1 to disable
 seed: 0
 mapping:
@@ -48,7 +48,7 @@ pose_graph:
   loop_matching_threshold: 0.001
   downsample_number: 500
   odometry_weight: 1.0
-  loop_weight: 2.5
+  loop_weight: 2.0
   optimization_max_iterations: 500
   optimization_step_size: 0.002
   rel_err_tolerance: 0.0001
