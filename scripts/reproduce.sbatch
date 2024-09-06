@@ -3,15 +3,16 @@
 #SBATCH --output=/home/stud/lxuh/storage/user/lxuh/output/logs/%A_%a.log  # please change accordingly
 #SBATCH --output=/home/stud/lxuh/storage/user/lxuh/output/logs/%A_%a.log   # please change accordingly
 #SBATCH --nodes=1
+#SBATCH --nodelist=node9
 #SBATCH --cpus-per-task=4
-#SBATCH --gres=gpu:1,VRAM:32G
+#SBATCH --gres=gpu:1,VRAM:24G
 #SBATCH --mem=16G
 #SBATCH --partition=NORMAL
 #SBATCH --time=24:00:00
 #SBATCH --mail-type=ALL
 #SBATCH --array=0-0 # number of scenes, 0-7 for Replica, 0-2 for TUM_RGBD, 0-5 for ScanNet, 0-4 for ScanNet++
 
-dataset="Replica" # set dataset
+dataset="ScanNet" # set dataset
 if [ "$dataset" == "Replica" ]; then
     # scenes=("room0" "room1" "room2" "office0" "office1" "office2" "office3" "office4")
     scenes=("office4")
@@ -22,7 +23,8 @@ elif [ "$dataset" == "TUM_RGBD" ]; then
     INPUT_PATH="/home/stud/lxuh/storage/group/dataset_mirrors/tum_rgbd_benchmark"
 elif [ "$dataset" == "ScanNet" ]; then
     # scenes=("scene0000_00" "scene0059_00" "scene0106_00" "scene0169_00" "scene0181_00" "scene0207_00")
-    scenes=("scene0059_00" "scene0106_00" "scene0169_00" "scene0181_00" "scene0207_00")
+    # scenes=("scene0059_00" "scene0106_00" "scene0169_00" "scene0181_00" "scene0207_00")
+    scenes=("scene0059_00")
     INPUT_PATH="/home/stud/lxuh/storage/user/lxuh/data/ScanNet"
 elif [ "$dataset" == "ScanNetPP" ]; then
     scenes=("b20a261fdf" "8b5caf3398" "fb05e13ad1" "2e74812d00" "281bc17764")
