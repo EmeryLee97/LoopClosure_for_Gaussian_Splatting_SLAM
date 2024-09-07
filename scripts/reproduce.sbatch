@@ -3,7 +3,7 @@
 #SBATCH --output=/home/stud/lxuh/storage/user/lxuh/output/logs/%A_%a.log  # please change accordingly
 #SBATCH --output=/home/stud/lxuh/storage/user/lxuh/output/logs/%A_%a.log   # please change accordingly
 #SBATCH --nodes=1
-#SBATCH --nodelist=node9
+#SBATCH --nodelist=node16
 #SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:1,VRAM:24G
 #SBATCH --mem=16G
@@ -14,17 +14,17 @@
 
 dataset="ScanNet" # set dataset
 if [ "$dataset" == "Replica" ]; then
-    # scenes=("room0" "room1" "room2" "office0" "office1" "office2" "office3" "office4")
-    scenes=("office4")
+    scenes=("room0" "room1" "room2" "office0" "office1" "office2" "office3" "office4")
+    # scenes=("office4")
     INPUT_PATH="/home/stud/lxuh/storage/user/lxuh/data/Replica"
 elif [ "$dataset" == "TUM_RGBD" ]; then
     # scenes=("rgbd_dataset_freiburg1_desk" "rgbd_dataset_freiburg2_xyz" "rgbd_dataset_freiburg3_long_office_household")
     scenes=("rgbd_dataset_freiburg1_desk" "rgbd_dataset_freiburg3_long_office_household")
     INPUT_PATH="/home/stud/lxuh/storage/group/dataset_mirrors/tum_rgbd_benchmark"
 elif [ "$dataset" == "ScanNet" ]; then
-    scenes=("scene0000_00" "scene0059_00" "scene0106_00" "scene0169_00" "scene0181_00" "scene0207_00")
+    # scenes=("scene0000_00" "scene0059_00" "scene0106_00" "scene0169_00" "scene0181_00" "scene0207_00")
     # scenes=("scene0059_00" "scene0106_00" "scene0169_00" "scene0181_00" "scene0207_00")
-    # scenes=("scene0059_00")
+    scenes=("scene0059_00")
     INPUT_PATH="/home/stud/lxuh/storage/user/lxuh/data/ScanNet"
 elif [ "$dataset" == "ScanNetPP" ]; then
     scenes=("b20a261fdf" "8b5caf3398" "fb05e13ad1" "2e74812d00" "281bc17764")
@@ -43,8 +43,8 @@ source ~/miniconda3/etc/profile.d/conda.sh # please change accordingly
 conda activate gslam
 
 # Build these libraries specifically for each GPU type, may takes 4-5 min, comment this part if you only work on one node.
-# pip install -e /home/stud/lxuh/Gaussian-SLAM/gaussian_rasterizer/.
-# pip install -e /home/stud/lxuh/Gaussian-SLAM/simple-knn/.
+pip install -e /home/stud/lxuh/Gaussian-SLAM/gaussian_rasterizer/.
+pip install -e /home/stud/lxuh/Gaussian-SLAM/simple-knn/.
 
 echo "Job for dataset: $dataset, scene: $SCENE_NAME"
 echo "Starting on: $(date)"

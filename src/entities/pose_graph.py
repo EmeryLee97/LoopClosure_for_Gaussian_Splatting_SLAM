@@ -211,7 +211,6 @@ class GaussianSLAMPoseGraph:
         add it into pose graph. Each vertex is initialized as identity matrix, with name 'VERTEX_SE3__str(i).zfill(6)', 
         where 'i' indicates it's the i'th submap.
         """
-        print(f"There are {loop_gaussian_model.get_xyz().shape[0]} Gaussians in the loop submap")
         current_submap_frame_id = new_submap_frame_ids[current_submap_id]
         current_frustum_corners = compute_camera_frustum_corners(self.dataset[current_submap_frame_id][2], estimated_c2ws[current_submap_frame_id], self.dataset.intrinsics)
         current_reused_pts_ids = compute_frustum_point_ids(current_gaussian_model.get_xyz(), current_frustum_corners, device=self.device)
