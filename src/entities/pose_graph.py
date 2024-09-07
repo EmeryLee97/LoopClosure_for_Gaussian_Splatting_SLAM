@@ -176,7 +176,6 @@ class GaussianSLAMPoseGraph:
         else:
             current_vertex = th.SE3(tensor=torch.tile(torch.eye(3, 4), [1, 1, 1]), name=f"VERTEX_SE3__{str(current_submap_id).zfill(6)}")
 
-        print(f"Creating_odometry_constraint between submap_{last_submap_id} and submap_{current_submap_id}")
         match_idx_last, match_idx_current = match_gaussian_means(
             last_gaussian_model.get_xyz()[last_reused_pts_ids], 
             current_gaussian_model.get_xyz()[current_reused_pts_ids], 
@@ -187,7 +186,7 @@ class GaussianSLAMPoseGraph:
             raise ValueError(f"No Gaussian correspondences found, please increase the match threshold or debug!")
         downsample_ids = downsample(match_idx_last, self.downsample_num*2)
         odometry_edge = GaussianSLAMEdge(last_submap_id, current_submap_id, torch.eye(3, 4), self.odometry_weight)
-        print(f"Building odometry constraint between submap_{last_submap_id} and submap_{current_submap_id}")
+        print(f"Creating odometry constraint between submap_{last_submap_id} and submap_{current_submap_id}")
         self.add_edge(
             last_vertex, current_vertex, odometry_edge, 
             last_gaussian_model.get_xyz()[last_reused_pts_ids][match_idx_last][downsample_ids], 
@@ -251,7 +250,7 @@ class GaussianSLAMPoseGraph:
 
         downsample_ids = downsample(match_idx_loop, self.downsample_num)
         if len(downsample_ids) <= 10:
-            print(f"No matching Gaussians found, false loop.")
+            print(f"No matching Gaussians found between submap_{current_submap_id} and submap_{loop_submap_id}, false loop.")
             return
         loop_edge = GaussianSLAMEdge(loop_submap_id, current_submap_id, relative_pose, self.loop_weight)
         print(f"Building loop constraint between submap_{loop_submap_id} and submap{current_submap_id}")

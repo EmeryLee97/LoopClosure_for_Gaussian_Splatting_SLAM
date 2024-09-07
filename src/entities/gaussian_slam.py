@@ -257,7 +257,7 @@ class GaussianSLAM(object):
             if self.should_start_new_submap(frame_id):
                 if self.optimize_with_loop_closure:
                     self.pose_graph_optimization(frame_id, gaussian_model)
-                    if self.dataset_name in ["tum_rgbd", "scan_net"]:
+                    if self.dataset_name in ["tum_rgbd"]:
                         print("Pose graph optimization triggered, retracking the current global keyframe.")
                         estimated_c2w = self.tracker.track(
                             frame_id, gaussian_model,
