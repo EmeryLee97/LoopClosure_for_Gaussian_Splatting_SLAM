@@ -154,7 +154,7 @@ class GaussianSLAM(object):
         if self.submap_id > 0:
             last_gaussian_model, _ = load_gaussian_from_submap_ckpt(self.submap_id-1, self.output_path, self.opt)
             self.pose_graph.create_odometry_constraint(
-                current_gaussian_model, last_gaussian_model, self.new_submap_frame_ids, self.estimated_c2ws
+                current_gaussian_model, last_gaussian_model, self.submap_id, self.new_submap_frame_ids, self.estimated_c2ws
             )
             if self.submap_id > 1:
                 min_score = self.local_feature_index.get_min_score(netvlad_feature=netvlad_feature)
@@ -164,7 +164,7 @@ class GaussianSLAM(object):
                 for loop_idx in loop_idx_list:
                     loop_gaussian_model, _ = load_gaussian_from_submap_ckpt(loop_idx, self.output_path, self.opt)
                     self.pose_graph.create_loop_constraint(
-                        current_gaussian_model, loop_gaussian_model, loop_idx, self.new_submap_frame_ids, self.estimated_c2ws
+                        current_gaussian_model, loop_gaussian_model, loop_idx, self.submap_id, self.new_submap_frame_ids, self.estimated_c2ws
                     )
                     #----------------------------------------------------------------------------------------
                     # self.pose_graph.logger.vis_submaps_overlap(

@@ -149,6 +149,7 @@ class GaussianSLAMPoseGraph:
             self, 
             current_gaussian_model: GaussianModel, 
             last_gaussian_model: GaussianModel,
+            current_submap_id: int,
             new_submap_frame_ids: List,
             estimated_c2ws: List, 
         ) -> None:
@@ -156,20 +157,19 @@ class GaussianSLAMPoseGraph:
         Each vertex is initialized as identity matrix, with name 'VERTEX_SE3__str(i).zfill(6)', where 'i' indicates it's 
         the i'th submap. The relative pose between adjacent submaps is also initialized to identity matrix. 
         """
-        last_submap_id = len(new_submap_frame_ids) - 2
-        last_submap_frame_id = new_submap_frame_ids[-2]
+        last_submap_id = current_submap_id - 1
+        last_submap_frame_id = new_submap_frame_ids[last_submap_id]
         print(f"First frame idx of submap_{last_submap_id} is {last_submap_frame_id}")
         last_frustum_corners = compute_camera_frustum_corners(self.dataset[last_submap_frame_id][2], estimated_c2ws[last_submap_frame_id], self.dataset.intrinsics)
         last_reused_pts_ids = compute_frustum_point_ids(last_gaussian_model.get_xyz(), last_frustum_corners, device=self.device)
-        print(f"{last_gaussian_model.get_xyz().shape[0]} Gaussians inside submap_{last_submap_id-1}")
-        print(f"{last_reused_pts_ids.shape[0]} Gaussians inside first frame of submap_{last_submap_id-1}")
+        print(f"{last_gaussian_model.get_xyz().shape[0]} Gaussians inside submap_{last_submap_id}")
+        print(f"{last_reused_pts_ids.shape[0]} Gaussians inside first frame of submap_{last_submap_id}")
         if self.objective.has_optim_var(f"VERTEX_SE3__{str(last_submap_id).zfill(6)}"):
             last_vertex = self.objective.get_optim_var(f"VERTEX_SE3__{str(last_submap_id).zfill(6)}")
         else:
             last_vertex = th.SE3(tensor=torch.tile(torch.eye(3, 4), [1, 1, 1]), name=f"VERTEX_SE3__{str(last_submap_id).zfill(6)}")
 
-        current_submap_id = len(new_submap_frame_ids) - 1
-        current_submap_frame_id = new_submap_frame_ids[-1]
+        current_submap_frame_id = new_submap_frame_ids[current_submap_frame_id]
         print(f"First frame idx of submap_{current_submap_id} is {current_submap_frame_id}")
         current_frustum_corners = compute_camera_frustum_corners(self.dataset[current_submap_frame_id][2], estimated_c2ws[current_submap_frame_id], self.dataset.intrinsics)
         current_reused_pts_ids = compute_frustum_point_ids(current_gaussian_model.get_xyz(), current_frustum_corners, device=self.device)
@@ -207,6 +207,7 @@ class GaussianSLAMPoseGraph:
         current_gaussian_model: GaussianModel, 
         loop_gaussian_model: GaussianModel,
         loop_submap_id: int, 
+        current_submap_id: int,
         new_submap_frame_ids: List, 
         estimated_c2ws: torch.Tensor,
     ) -> None:
@@ -215,8 +216,7 @@ class GaussianSLAMPoseGraph:
         where 'i' indicates it's the i'th submap.
         """
         print(f"There are {loop_gaussian_model.get_xyz().shape[0]} Gaussians in the loop submap")
-        current_submap_id = len(new_submap_frame_ids) - 1
-        current_submap_frame_id = new_submap_frame_ids[-1]
+        current_submap_frame_id = new_submap_frame_ids[current_submap_id]
         current_frustum_corners = compute_camera_frustum_corners(self.dataset[current_submap_frame_id][2], estimated_c2ws[current_submap_frame_id], self.dataset.intrinsics)
         current_reused_pts_ids = compute_frustum_point_ids(current_gaussian_model.get_xyz(), current_frustum_corners, device=self.device)
         if self.objective.has_optim_var(f"VERTEX_SE3__{str(current_submap_id).zfill(6)}"):
