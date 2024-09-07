@@ -6,6 +6,7 @@ import pprint
 from argparse import ArgumentParser
 from datetime import datetime
 from pathlib import Path
+import gc
 
 import numpy as np
 import torch
@@ -221,8 +222,9 @@ class GaussianSLAM(object):
                             }
                             save_dict_to_ckpt(
                                 submap_ckpt, f"{str(submap_id).zfill(6)}.ckpt", directory=self.output_path / "submaps")
-                            # TODO: torch.cuda.empty_cache()?
                             del gaussian_model_prev
+                            gc.collect()
+                            torch.cuda.empty_cache()
 
                         for frame_idx in range(submap_start_idx, submap_end_idx):
                             pose_correction = pose_correction.to(self.estimated_c2ws[frame_idx].device)
