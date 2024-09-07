@@ -46,7 +46,7 @@ pose_graph:
   gt_relative_pose: False
   opacity_threshold: 0.95
   odo_matching_threshold: 0.02
-  loop_matching_threshold: 0.005
+  loop_matching_threshold: 0.01
   downsample_number: 500
   odometry_weight: 1.0
   loop_weight: 1.0
