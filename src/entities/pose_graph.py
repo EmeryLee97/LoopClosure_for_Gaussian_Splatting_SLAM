@@ -158,6 +158,7 @@ class GaussianSLAMPoseGraph:
         """
         last_submap_id = len(new_submap_frame_ids) - 2
         last_submap_frame_id = new_submap_frame_ids[-2]
+        print(f"First frame idx of submap_{last_submap_id} is {last_submap_frame_id}")
         last_frustum_corners = compute_camera_frustum_corners(self.dataset[last_submap_frame_id][2], estimated_c2ws[last_submap_frame_id], self.dataset.intrinsics)
         last_reused_pts_ids = compute_frustum_point_ids(last_gaussian_model.get_xyz(), last_frustum_corners, device=self.device)
         print(f"{last_gaussian_model.get_xyz().shape[0]} Gaussians inside submap_{last_submap_id-1}")
@@ -169,6 +170,7 @@ class GaussianSLAMPoseGraph:
 
         current_submap_id = len(new_submap_frame_ids) - 1
         current_submap_frame_id = new_submap_frame_ids[-1]
+        print(f"First frame idx of submap_{current_submap_id} is {current_submap_frame_id}")
         current_frustum_corners = compute_camera_frustum_corners(self.dataset[current_submap_frame_id][2], estimated_c2ws[current_submap_frame_id], self.dataset.intrinsics)
         current_reused_pts_ids = compute_frustum_point_ids(current_gaussian_model.get_xyz(), current_frustum_corners, device=self.device)
         print(f"{current_gaussian_model.get_xyz().shape[0]} Gaussians inside submap_{last_submap_id-1}")
@@ -178,6 +180,7 @@ class GaussianSLAMPoseGraph:
         else:
             current_vertex = th.SE3(tensor=torch.tile(torch.eye(3, 4), [1, 1, 1]), name=f"VERTEX_SE3__{str(current_submap_id).zfill(6)}")
 
+        print(f"Creating_odometry_constraint between subma_{last_submap_id} and submap_{current_submap_id}")
         match_idx_last, match_idx_current = match_gaussian_means(
             last_gaussian_model.get_xyz()[last_reused_pts_ids], 
             current_gaussian_model.get_xyz()[current_reused_pts_ids], 
