@@ -257,8 +257,8 @@ class GaussianSLAM(object):
             if self.should_start_new_submap(frame_id):
                 if self.optimize_with_loop_closure:
                     self.pose_graph_optimization(frame_id, gaussian_model)
-                    print("Pose graph optimization triggered, retracking the current global keyframe.")
                     if self.dataset_name == "tum_rgbd":
+                        print("Pose graph optimization triggered, retracking the current global keyframe.")
                         estimated_c2w = self.tracker.track(
                             frame_id, gaussian_model,
                             torch2np(self.estimated_c2ws[torch.tensor([0, frame_id - 2, frame_id - 1])]), retrack=False)
