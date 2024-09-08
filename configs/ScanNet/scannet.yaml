@@ -45,13 +45,13 @@ cam:
 pose_graph:
   gt_relative_pose: False
   opacity_threshold: 0.95
-  odo_matching_threshold: 0.1
+  odo_matching_threshold: 0.05
   loop_matching_threshold: 0.02
   downsample_number: 500
   odometry_weight: 1.0
   loop_weight: 1.0
   optimization_max_iterations: 1000
-  optimization_step_size: 0.002
+  optimization_step_size: 0.005
   rel_err_tolerance: 0.00001
   damping: 0.05
   track_best_solution: True
