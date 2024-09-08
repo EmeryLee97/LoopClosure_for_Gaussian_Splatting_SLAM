@@ -36,7 +36,8 @@ fi
 
 OUTPUT_PATH="output"
 CONFIG_PATH="configs/${dataset}"
-EXPERIMENT_NAME="select_hyperparameters"
+# EXPERIMENT_NAME="select_hyperparameters"
+EXPERIMENT_NAME="select_hyperparameters_stepsize=0.05"
 SCENE_NAME=${scenes[$SLURM_ARRAY_TASK_ID]}
 
 source ~/miniconda3/etc/profile.d/conda.sh # please change accordingly
