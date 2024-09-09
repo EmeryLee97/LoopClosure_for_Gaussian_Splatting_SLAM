@@ -160,7 +160,7 @@ class GaussianSLAMPoseGraph:
         last_submap_id = current_submap_id - 1
         last_submap_frame_id = new_submap_frame_ids[last_submap_id]
         last_frustum_corners = compute_camera_frustum_corners(self.dataset[last_submap_frame_id][2], estimated_c2ws[last_submap_frame_id], self.dataset.intrinsics)
-        last_reused_pts_ids = compute_frustum_point_ids(last_gaussian_model.get_xyz(), last_frustum_corners, device=self.device)
+        # last_reused_pts_ids = compute_frustum_point_ids(last_gaussian_model.get_xyz(), last_frustum_corners, device=self.device)
         if self.objective.has_optim_var(f"VERTEX_SE3__{str(last_submap_id).zfill(6)}"):
             last_vertex = self.objective.get_optim_var(f"VERTEX_SE3__{str(last_submap_id).zfill(6)}")
         else:
@@ -168,15 +168,17 @@ class GaussianSLAMPoseGraph:
 
         current_submap_frame_id = new_submap_frame_ids[current_submap_id]
         current_frustum_corners = compute_camera_frustum_corners(self.dataset[current_submap_frame_id][2], estimated_c2ws[current_submap_frame_id], self.dataset.intrinsics)
-        current_reused_pts_ids = compute_frustum_point_ids(current_gaussian_model.get_xyz(), current_frustum_corners, device=self.device)
+        # current_reused_pts_ids = compute_frustum_point_ids(current_gaussian_model.get_xyz(), current_frustum_corners, device=self.device)
         if self.objective.has_optim_var(f"VERTEX_SE3__{str(current_submap_id).zfill(6)}"):
             current_vertex = self.objective.get_optim_var(f"VERTEX_SE3__{str(current_submap_id).zfill(6)}")
         else:
             current_vertex = th.SE3(tensor=torch.tile(torch.eye(3, 4), [1, 1, 1]), name=f"VERTEX_SE3__{str(current_submap_id).zfill(6)}")
 
         match_idx_last, match_idx_current = match_gaussian_means(
-            last_gaussian_model.get_xyz()[last_reused_pts_ids], 
-            current_gaussian_model.get_xyz()[current_reused_pts_ids], 
+            # last_gaussian_model.get_xyz()[last_reused_pts_ids], 
+            # current_gaussian_model.get_xyz()[current_reused_pts_ids], 
+            last_gaussian_model.get_xyz(),
+            current_gaussian_model.get_xyz(),
             torch.eye(4, device="cuda"), 
             self.odo_matching_threshold
         )
@@ -185,13 +187,21 @@ class GaussianSLAMPoseGraph:
         downsample_ids = downsample(match_idx_last, self.downsample_num*2)
         odometry_edge = GaussianSLAMEdge(last_submap_id, current_submap_id, torch.eye(3, 4), self.odometry_weight)
         print(f"Creating odometry constraint between submap_{last_submap_id} and submap_{current_submap_id}")
+        # self.add_edge(
+        #     last_vertex, current_vertex, odometry_edge, 
+        #     last_gaussian_model.get_xyz()[last_reused_pts_ids][match_idx_last][downsample_ids], 
+        #     last_gaussian_model.get_scaling()[last_reused_pts_ids][match_idx_last][downsample_ids], 
+        #     last_gaussian_model.get_rotation()[last_reused_pts_ids][match_idx_last][downsample_ids], 
+        #     SH2RGB(last_gaussian_model.get_features()[last_reused_pts_ids][match_idx_last][downsample_ids]).clamp(0, 1),
+        #     SH2RGB(current_gaussian_model.get_features()[current_reused_pts_ids][match_idx_current][downsample_ids]).clamp(0, 1),
+        # )
         self.add_edge(
             last_vertex, current_vertex, odometry_edge, 
-            last_gaussian_model.get_xyz()[last_reused_pts_ids][match_idx_last][downsample_ids], 
-            last_gaussian_model.get_scaling()[last_reused_pts_ids][match_idx_last][downsample_ids], 
-            last_gaussian_model.get_rotation()[last_reused_pts_ids][match_idx_last][downsample_ids], 
-            SH2RGB(last_gaussian_model.get_features()[last_reused_pts_ids][match_idx_last][downsample_ids]).clamp(0, 1),
-            SH2RGB(current_gaussian_model.get_features()[current_reused_pts_ids][match_idx_current][downsample_ids]).clamp(0, 1),
+            last_gaussian_model.get_xyz()[match_idx_last][downsample_ids], 
+            last_gaussian_model.get_scaling()[match_idx_last][downsample_ids], 
+            last_gaussian_model.get_rotation()[match_idx_last][downsample_ids], 
+            SH2RGB(last_gaussian_model.get_features()[match_idx_last][downsample_ids]).clamp(0, 1),
+            SH2RGB(current_gaussian_model.get_features()[match_idx_current][downsample_ids]).clamp(0, 1),
         )
         print(f"Current error metric = {self.objective.error_metric()}")
 
@@ -210,7 +220,7 @@ class GaussianSLAMPoseGraph:
         """
         current_submap_frame_id = new_submap_frame_ids[current_submap_id]
         current_frustum_corners = compute_camera_frustum_corners(self.dataset[current_submap_frame_id][2], estimated_c2ws[current_submap_frame_id], self.dataset.intrinsics)
-        current_reused_pts_ids = compute_frustum_point_ids(current_gaussian_model.get_xyz(), current_frustum_corners, device=self.device)
+        # current_reused_pts_ids = compute_frustum_point_ids(current_gaussian_model.get_xyz(), current_frustum_corners, device=self.device)
         if self.objective.has_optim_var(f"VERTEX_SE3__{str(current_submap_id).zfill(6)}"):
             current_vertex = self.objective.get_optim_var(f"VERTEX_SE3__{str(current_submap_id).zfill(6)}")
         else:
@@ -218,7 +228,7 @@ class GaussianSLAMPoseGraph:
         
         loop_submap_frame_id = new_submap_frame_ids[loop_submap_id]
         loop_frustum_corners = compute_camera_frustum_corners(self.dataset[loop_submap_frame_id][2], estimated_c2ws[loop_submap_frame_id], self.dataset.intrinsics)
-        loop_reused_pts_ids = compute_frustum_point_ids(loop_gaussian_model.get_xyz(), loop_frustum_corners, device=self.device)
+        # loop_reused_pts_ids = compute_frustum_point_ids(loop_gaussian_model.get_xyz(), loop_frustum_corners, device=self.device)
         if loop_submap_id == 0:
             loop_vertex = self.objective.get_aux_var(f"VERTEX_SE3__{str(loop_submap_id).zfill(6)}")
         else:
@@ -229,15 +239,19 @@ class GaussianSLAMPoseGraph:
             loop_correction_pose_gt = np2torch(self.dataset[loop_submap_frame_id][-1]) @ estimated_c2ws[loop_submap_frame_id].inverse()
             relative_pose = current_correction_pose_gt @ loop_correction_pose_gt.inverse()
             match_idx_loop, match_idx_current = match_gaussian_means(
-            loop_gaussian_model.get_xyz()[loop_reused_pts_ids], # TODO: should I detach them from the graph?
-            current_gaussian_model.get_xyz()[current_reused_pts_ids], 
+            # loop_gaussian_model.get_xyz()[loop_reused_pts_ids], # TODO: should I detach them from the graph?
+            # current_gaussian_model.get_xyz()[current_reused_pts_ids], 
+            loop_gaussian_model.get_xyz(),
+            current_gaussian_model.get_xyz(),
             relative_pose.to('cuda'), 
             self.loop_matching_threshold
         )
         else:
             relative_pose, corres_set = compute_relative_pose(
-                np2ptcloud(torch2np(loop_gaussian_model.get_xyz()[loop_reused_pts_ids])),
-                np2ptcloud(torch2np(current_gaussian_model.get_xyz()[current_reused_pts_ids])),
+                # np2ptcloud(torch2np(loop_gaussian_model.get_xyz()[loop_reused_pts_ids])),
+                # np2ptcloud(torch2np(current_gaussian_model.get_xyz()[current_reused_pts_ids])),
+                np2ptcloud(torch2np(loop_gaussian_model.get_xyz())),
+                np2ptcloud(torch2np(current_gaussian_model.get_xyz())),
                 np.eye(4), 
                 voxel_size=self.loop_matching_threshold, 
                 distance_threshold=self.loop_matching_threshold
@@ -252,12 +266,20 @@ class GaussianSLAMPoseGraph:
             return
         loop_edge = GaussianSLAMEdge(loop_submap_id, current_submap_id, relative_pose, self.loop_weight)
         print(f"Building loop constraint between submap_{loop_submap_id} and submap{current_submap_id}")
+        # self.add_edge(
+        #     loop_vertex, current_vertex, loop_edge, 
+        #     loop_gaussian_model.get_xyz()[loop_reused_pts_ids][match_idx_loop][downsample_ids], 
+        #     loop_gaussian_model.get_scaling()[loop_reused_pts_ids][match_idx_loop][downsample_ids], 
+        #     loop_gaussian_model.get_rotation()[loop_reused_pts_ids][match_idx_loop][downsample_ids], 
+        #     SH2RGB(loop_gaussian_model.get_features()[loop_reused_pts_ids][match_idx_loop][downsample_ids]).clamp(0, 1),
+        #     SH2RGB(current_gaussian_model.get_features()[current_reused_pts_ids][match_idx_current][downsample_ids]).clamp(0, 1)
+        # )
         self.add_edge(
             loop_vertex, current_vertex, loop_edge, 
-            loop_gaussian_model.get_xyz()[loop_reused_pts_ids][match_idx_loop][downsample_ids], 
-            loop_gaussian_model.get_scaling()[loop_reused_pts_ids][match_idx_loop][downsample_ids], 
-            loop_gaussian_model.get_rotation()[loop_reused_pts_ids][match_idx_loop][downsample_ids], 
-            SH2RGB(loop_gaussian_model.get_features()[loop_reused_pts_ids][match_idx_loop][downsample_ids]).clamp(0, 1),
-            SH2RGB(current_gaussian_model.get_features()[current_reused_pts_ids][match_idx_current][downsample_ids]).clamp(0, 1)
+            loop_gaussian_model.get_xyz()[match_idx_loop][downsample_ids], 
+            loop_gaussian_model.get_scaling()[match_idx_loop][downsample_ids], 
+            loop_gaussian_model.get_rotation()[match_idx_loop][downsample_ids], 
+            SH2RGB(loop_gaussian_model.get_features()[match_idx_loop][downsample_ids]).clamp(0, 1),
+            SH2RGB(current_gaussian_model.get_features()[match_idx_current][downsample_ids]).clamp(0, 1)
         )
         print(f"Current error metric = {self.objective.error_metric()}")
