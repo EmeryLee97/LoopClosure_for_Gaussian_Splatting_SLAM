@@ -50,7 +50,7 @@ pose_graph:
   downsample_number: 500
   odometry_weight: 1.0
   loop_weight: 1.0
-  optimization_max_iterations: 1000
+  optimization_max_iterations: 500
   optimization_step_size: 0.005
   rel_err_tolerance: 0.00001
   damping: 0.05
