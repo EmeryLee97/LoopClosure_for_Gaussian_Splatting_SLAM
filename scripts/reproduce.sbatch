@@ -23,7 +23,7 @@ elif [ "$dataset" == "TUM_RGBD" ]; then
     INPUT_PATH="/home/stud/lxuh/storage/group/dataset_mirrors/tum_rgbd_benchmark"
 elif [ "$dataset" == "ScanNet" ]; then
     # scenes=("scene0000_00" "scene0059_00" "scene0106_00" "scene0169_00" "scene0181_00" "scene0207_00")
-    scenes=("scene0000_00" "scene0059_00" "scene0106_00" "scene0169_00" "scene0207_00")
+    scenes=("scene0059_00" "scene0106_00" "scene0169_00" "scene0207_00")
     # scenes=("scene0059_00")
     INPUT_PATH="/home/stud/lxuh/storage/user/lxuh/data/ScanNet"
 elif [ "$dataset" == "ScanNetPP" ]; then
