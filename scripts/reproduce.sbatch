@@ -10,7 +10,7 @@
 #SBATCH --partition=NORMAL
 #SBATCH --time=24:00:00
 #SBATCH --mail-type=ALL
-#SBATCH --array=0-4 # number of scenes, 0-7 for Replica, 0-2 for TUM_RGBD, 0-5 for ScanNet, 0-4 for ScanNet++
+#SBATCH --array=0-3 # number of scenes, 0-7 for Replica, 0-2 for TUM_RGBD, 0-5 for ScanNet, 0-4 for ScanNet++
 
 dataset="ScanNet" # set dataset
 if [ "$dataset" == "Replica" ]; then
