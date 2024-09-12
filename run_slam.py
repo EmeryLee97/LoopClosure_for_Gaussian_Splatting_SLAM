@@ -113,10 +113,11 @@ if __name__ == "__main__":
     output_path = Path(config["data"]["output_path"])
     print(f"output_path={output_path}")
     evaluator = Evaluator(output_path, output_path/"config.yaml")
-    evaluator.run()
-    if config["use_wandb"]:
-        evals = ["rendering_metrics.json",
-                 "reconstruction_metrics.json", "ate_aligned.json"]
-        log_metrics_to_wandb(evals, output_path, "Evaluation")
-        wandb.finish()
+    # evaluator.run()
+    evaluator.run_reconstruction_eval()
+    # if config["use_wandb"]:
+    #     evals = ["rendering_metrics.json",
+    #              "reconstruction_metrics.json", "ate_aligned.json"]
+    #     log_metrics_to_wandb(evals, output_path, "Evaluation")
+    #     wandb.finish()
     print("All done.✨")
