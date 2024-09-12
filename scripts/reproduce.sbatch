@@ -49,6 +49,7 @@ echo "Job for dataset: $dataset, scene: $SCENE_NAME"
 echo "Starting on: $(date)"
 echo "Running on node: $(hostname)"
 
+pkill Xvfb
 # module load python/3.10
 module load xvfb
 Xvfb :99 -screen 0 500x500x24 &
