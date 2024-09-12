@@ -49,6 +49,11 @@ echo "Job for dataset: $dataset, scene: $SCENE_NAME"
 echo "Starting on: $(date)"
 echo "Running on node: $(hostname)"
 
+module load python/3.10
+module load xvfb
+Xvfb :99 -screen 0 1024x768x24 &
+export DISPLAY=:99
+
 # Your command to run the experiment
 srun python run_slam.py "${CONFIG_PATH}/${SCENE_NAME}.yaml" \
                    --input_path "${INPUT_PATH}/${SCENE_NAME}" \
