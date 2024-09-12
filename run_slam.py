@@ -111,6 +111,7 @@ if __name__ == "__main__":
 
     # evaluator = Evaluator(gslam.output_path, gslam.output_path / "config.yaml")
     output_path = Path(config["data"]["output_path"])
+    print(f"output_path={output_path}")
     evaluator = Evaluator(output_path, output_path/"config.yaml")
     evaluator.run()
     if config["use_wandb"]:
