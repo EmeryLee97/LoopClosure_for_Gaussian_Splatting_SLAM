@@ -118,8 +118,8 @@ if __name__ == "__main__":
     # evaluator.run()
     file_name = output_path / "mesh" / "final_mesh.ply"
     evaluate_reconstruction(file_name,
-                            f"/home/stud/lxuh/storage/user/lxuh/data/Replica-SLAM/cull_replica_mesh/{self.scene_name}.ply",
-                            f"/home/stud/lxuh/storage/user/lxuh/data/Replica-SLAM/cull_replica_mesh/{self.scene_name}_pc_unseen.npy",
+                            f"/home/stud/lxuh/storage/user/lxuh/data/Replica-SLAM/cull_replica_mesh/{evaluator.scene_name}.ply",
+                            f"/home/stud/lxuh/storage/user/lxuh/data/Replica-SLAM/cull_replica_mesh/{evaluator.scene_name}_pc_unseen.npy",
                             output_path)
     evaluator.run_reconstruction_eval()
     # if config["use_wandb"]:
