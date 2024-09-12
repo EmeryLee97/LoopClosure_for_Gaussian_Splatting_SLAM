@@ -115,14 +115,14 @@ if __name__ == "__main__":
     output_path = Path(config["data"]["output_path"])
     print(f"output_path={output_path}")
     evaluator = Evaluator(output_path, output_path/"config.yaml")
-    print(f"{evaluator.scene_name}.ply")
     # evaluator.run()
     file_name = output_path / "mesh" / "final_mesh.ply"
+    print(f"file_name={file_name}")
     evaluate_reconstruction(file_name,
                             f"/home/stud/lxuh/storage/user/lxuh/data/Replica-SLAM/cull_replica_mesh/{evaluator.scene_name}.ply",
                             f"/home/stud/lxuh/storage/user/lxuh/data/Replica-SLAM/cull_replica_mesh/{evaluator.scene_name}_pc_unseen.npy",
                             output_path)
-    evaluator.run_reconstruction_eval()
+    # evaluator.run_reconstruction_eval()
     # if config["use_wandb"]:
     #     evals = ["rendering_metrics.json",
     #              "reconstruction_metrics.json", "ate_aligned.json"]
