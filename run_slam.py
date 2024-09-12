@@ -115,6 +115,7 @@ if __name__ == "__main__":
     output_path = Path(config["data"]["output_path"])
     print(f"output_path={output_path}")
     evaluator = Evaluator(output_path, output_path/"config.yaml")
+    print(f"{evaluator.scene_name}.ply")
     # evaluator.run()
     file_name = output_path / "mesh" / "final_mesh.ply"
     evaluate_reconstruction(file_name,
