@@ -2,6 +2,7 @@ import argparse
 import os
 import time
 import uuid
+from pathlib import Path
 
 import wandb
 
@@ -109,11 +110,12 @@ if __name__ == "__main__":
     # gslam.run()
 
     # evaluator = Evaluator(gslam.output_path, gslam.output_path / "config.yaml")
-    evaluator = Evaluator(config["data"]["output_path"], config["data"]["output_path"]/"config.yaml")
+    output_path = Path(config["data"]["output_path"])
+    evaluator = Evaluator(output_path, output_path/"config.yaml")
     evaluator.run()
     if config["use_wandb"]:
         evals = ["rendering_metrics.json",
                  "reconstruction_metrics.json", "ate_aligned.json"]
-        log_metrics_to_wandb(evals, config["data"]["output_path"], "Evaluation")
+        log_metrics_to_wandb(evals, output_path, "Evaluation")
         wandb.finish()
     print("All done.✨")
