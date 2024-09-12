@@ -2,7 +2,9 @@ import argparse
 import os
 import time
 import uuid
+
 from pathlib import Path
+from src.evaluation.evaluate_reconstruction import evaluate_reconstruction
 
 import wandb
 
@@ -114,10 +116,15 @@ if __name__ == "__main__":
     print(f"output_path={output_path}")
     evaluator = Evaluator(output_path, output_path/"config.yaml")
     # evaluator.run()
+    file_name = output_path / "mesh" / "final_mesh.ply"
+    evaluate_reconstruction(file_name,
+                            f"/home/stud/lxuh/storage/user/lxuh/data/Replica-SLAM/cull_replica_mesh/{self.scene_name}.ply",
+                            f"/home/stud/lxuh/storage/user/lxuh/data/Replica-SLAM/cull_replica_mesh/{self.scene_name}_pc_unseen.npy",
+                            output_path)
     evaluator.run_reconstruction_eval()
     # if config["use_wandb"]:
     #     evals = ["rendering_metrics.json",
     #              "reconstruction_metrics.json", "ate_aligned.json"]
     #     log_metrics_to_wandb(evals, output_path, "Evaluation")
     #     wandb.finish()
-    print("All done.✨")
+    # print("All done.✨")
