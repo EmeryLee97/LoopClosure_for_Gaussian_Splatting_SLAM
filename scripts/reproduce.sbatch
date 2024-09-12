@@ -1,7 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name="Loop-GSLAM"
 #SBATCH --output=/home/stud/lxuh/storage/user/lxuh/output/logs/%A_%a.log  # please change accordingly
-#SBATCH --output=/home/stud/lxuh/storage/user/lxuh/output/logs/%A_%a.log   # please change accordingly
 #SBATCH --nodes=1
 #SBATCH --nodelist=node16
 #SBATCH --cpus-per-task=4
@@ -10,12 +9,11 @@
 #SBATCH --partition=NORMAL
 #SBATCH --time=24:00:00
 #SBATCH --mail-type=ALL
-#SBATCH --array=0-3 # number of scenes, 0-7 for Replica, 0-2 for TUM_RGBD, 0-5 for ScanNet, 0-4 for ScanNet++
+#SBATCH --array=0-7 # number of scenes, 0-7 for Replica, 0-2 for TUM_RGBD, 0-5 for ScanNet, 0-4 for ScanNet++
 
 dataset="ScanNet" # set dataset
 if [ "$dataset" == "Replica" ]; then
     scenes=("room0" "room1" "room2" "office0" "office1" "office2" "office3" "office4")
-    # scenes=("office4")
     INPUT_PATH="/home/stud/lxuh/storage/user/lxuh/data/Replica"
 elif [ "$dataset" == "TUM_RGBD" ]; then
     # scenes=("rgbd_dataset_freiburg1_desk" "rgbd_dataset_freiburg2_xyz" "rgbd_dataset_freiburg3_long_office_household")

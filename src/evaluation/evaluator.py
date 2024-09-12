@@ -203,8 +203,8 @@ class Evaluator(object):
         file_name = self.checkpoint_path / "mesh" / "final_mesh.ply"
         o3d.io.write_triangle_mesh(str(file_name), o3d_mesh)
         evaluate_reconstruction(file_name,
-                                f"data/Replica-SLAM/cull_replica/{self.scene_name}.ply",
-                                f"data/Replica-SLAM/cull_replica/{self.scene_name}_pc_unseen.npy",
+                                f"/home/stud/lxuh/storage/user/lxuh/data/Replica-SLAM/cull_replica_mesh/{self.scene_name}.ply",
+                                f"/home/stud/lxuh/storage/user/lxuh/data/Replica-SLAM/cull_replica_mesh/{self.scene_name}_pc_unseen.npy",
                                 self.checkpoint_path)
 
     def run_global_map_eval(self):

@@ -90,29 +90,30 @@ if __name__ == "__main__":
     config = load_config(args.config_path)
     config = update_config_with_args(config, args)
 
-    if os.getenv('DISABLE_WANDB') == 'true':
-        config["use_wandb"] = False
-    if config["use_wandb"]:
-        wandb.init(
-            project=config["project_name"],
-            config=config,
-            dir="/home/stud/lxuh/storage/user/lxuh/output/wandb",
-            group=config["data"]["scene_name"]
-            if not args.group_name
-            else args.group_name,
-            name=f'{config["data"]["scene_name"]}_{time.strftime("%Y%m%d_%H%M%S", time.localtime())}_{str(uuid.uuid4())[:5]}',
-        )
-        wandb.run.log_code(".", include_fn=lambda path: path.endswith(".py"))
+    # if os.getenv('DISABLE_WANDB') == 'true':
+    #     config["use_wandb"] = False
+    # if config["use_wandb"]:
+    #     wandb.init(
+    #         project=config["project_name"],
+    #         config=config,
+    #         dir="/home/stud/lxuh/storage/user/lxuh/output/wandb",
+    #         group=config["data"]["scene_name"]
+    #         if not args.group_name
+    #         else args.group_name,
+    #         name=f'{config["data"]["scene_name"]}_{time.strftime("%Y%m%d_%H%M%S", time.localtime())}_{str(uuid.uuid4())[:5]}',
+    #     )
+    #     wandb.run.log_code(".", include_fn=lambda path: path.endswith(".py"))
 
     setup_seed(config["seed"])
-    gslam = GaussianSLAM(config)
-    gslam.run()
+    # gslam = GaussianSLAM(config)
+    # gslam.run()
 
-    evaluator = Evaluator(gslam.output_path, gslam.output_path / "config.yaml")
+    # evaluator = Evaluator(gslam.output_path, gslam.output_path / "config.yaml")
+    evaluator = Evaluator(config["data"]["output_path"], config["data"]["output_path"]/"config.yaml")
     evaluator.run()
     if config["use_wandb"]:
         evals = ["rendering_metrics.json",
                  "reconstruction_metrics.json", "ate_aligned.json"]
-        log_metrics_to_wandb(evals, gslam.output_path, "Evaluation")
+        log_metrics_to_wandb(evals, config["data"]["output_path"], "Evaluation")
         wandb.finish()
     print("All done.✨")
