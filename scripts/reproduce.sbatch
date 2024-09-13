@@ -50,11 +50,13 @@ echo "Starting on: $(date)"
 echo "Running on node: $(hostname)"
 
 pkill Xvfb
-# module load python/3.10
+
+
+module load python/3.10
 module load xvfb
-# Xvfb :99 -screen 0 500x500x24 &
-# export DISPLAY=:99
-xvfb-run --auto-servernum --server-num=1
+Xvfb :99 -screen 0 500x500x24 &
+export DISPLAY=:99
+xvfb-run -a
 
 # Your command to run the experiment
 srun python run_slam.py "${CONFIG_PATH}/${SCENE_NAME}.yaml" \
