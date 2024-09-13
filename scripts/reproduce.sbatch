@@ -49,14 +49,10 @@ echo "Job for dataset: $dataset, scene: $SCENE_NAME"
 echo "Starting on: $(date)"
 echo "Running on node: $(hostname)"
 
-pkill Xvfb
-
-
-module load python/3.10.14
-module load xvfb
-Xvfb :99 -screen 0 500x500x24 &
-export DISPLAY=:99
-xvfb-run -a
+# pkill Xvfb
+# Xvfb :99 -screen 0 500x500x24 &
+# export DISPLAY=:99
+# xvfb-run -a
 
 # Your command to run the experiment
 srun python run_slam.py "${CONFIG_PATH}/${SCENE_NAME}.yaml" \
@@ -68,5 +64,5 @@ echo "Job for scene $SCENE_NAME completed."
 echo "Started at: $START_TIME"
 echo "Finished at: $(date)"
 
-pkill Xvfb
+# pkill Xvfb
 
