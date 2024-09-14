@@ -2,7 +2,6 @@
 #SBATCH --job-name="Loop-GSLAM"
 #SBATCH --output=/home/stud/lxuh/storage/user/lxuh/output/logs/%A_%a.log  # please change accordingly
 #SBATCH --nodes=1
-#SBATCH --nodelist=node17
 #SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:1,VRAM:24G
 #SBATCH --mem=16G
@@ -43,8 +42,8 @@ source ~/miniconda3/etc/profile.d/conda.sh # please change accordingly
 conda activate gslam
 
 # Build these libraries specifically for each GPU type, may takes 4-5 min, comment this part if you only work on one node.
-# pip install -e /home/stud/lxuh/Gaussian-SLAM/gaussian_rasterizer/.
-# pip install -e /home/stud/lxuh/Gaussian-SLAM/simple-knn/.
+pip install -e /home/stud/lxuh/Gaussian-SLAM/gaussian_rasterizer/.
+pip install -e /home/stud/lxuh/Gaussian-SLAM/simple-knn/.
 
 echo "Job for dataset: $dataset, scene: $SCENE_NAME"
 echo "Starting on: $(date)"
