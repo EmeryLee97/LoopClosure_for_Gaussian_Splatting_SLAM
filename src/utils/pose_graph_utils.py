@@ -108,12 +108,12 @@ def error_fn_dense_gaussian_alignment(optim_vars, aux_vars) -> torch.Tensor:
     gaussian_xyz_j_corrected = gaussian_xyz_j.tensor @ pose_j.rotation().tensor.transpose(-1, -2) + pose_j.translation().tensor.unsqueeze(-2)
     # gaussian_rotation_j_correct = quaternion_multiplication(pose_j.rotation().to_quaternion().unsqueeze(1), gaussian_rotation_j)
 
-    h_distance = hellinger_distance(gaussian_xyz_i_corrected, gaussian_covariance_i, gaussian_xyz_j_corrected, gaussian_covariance_i) # (batch_size, num_gs)
+    h_distance = hellinger_distance(gaussian_xyz_i_corrected, gaussian_covariance_i, gaussian_xyz_j_corrected, gaussian_covariance_i) # (num_gs)
     color_diff = torch.norm(gaussian_color_i.tensor-gaussian_color_j.tensor, p=1, dim=-1) # (batch_size, num_gs)
     color_diff_sigmoid = modified_sigmoid(color_diff, k=8)
     # return color_diff_sigmoid * h_distance
     print(f"h_distance shape = {h_distance.shape}")
-    return h_distance
+    return h_distance.unsqueeze(0)
 
 
 
