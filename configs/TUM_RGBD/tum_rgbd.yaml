@@ -4,7 +4,7 @@ checkpoint_path: null
 use_wandb: True
 optimize_with_loop_closure: True
 frame_limit: -1 # for debugging, set to -1 to disable
-seed: 0
+seed: 1
 mapping:
   new_submap_every: 50
   map_every: 5

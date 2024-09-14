@@ -18,7 +18,7 @@ if [ "$dataset" == "Replica" ]; then
 elif [ "$dataset" == "TUM_RGBD" ]; then
     # scenes=("rgbd_dataset_freiburg1_desk" "rgbd_dataset_freiburg2_xyz" "rgbd_dataset_freiburg3_long_office_household")
     # scenes=("rgbd_dataset_freiburg1_desk" "rgbd_dataset_freiburg3_long_office_household")
-    scenes=("rgbd_dataset_freiburg3_long_office_household")
+    scenes=("rgbd_dataset_freiburg1_desk")
     INPUT_PATH="/home/stud/lxuh/storage/group/dataset_mirrors/tum_rgbd_benchmark"
 elif [ "$dataset" == "ScanNet" ]; then
     # scenes=("scene0000_00" "scene0059_00" "scene0106_00" "scene0169_00" "scene0181_00" "scene0207_00")
