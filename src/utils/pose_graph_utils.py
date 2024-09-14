@@ -113,7 +113,8 @@ def error_fn_dense_gaussian_alignment(optim_vars, aux_vars) -> torch.Tensor:
     color_diff_sigmoid = modified_sigmoid(color_diff, k=8)
     # return color_diff_sigmoid * h_distance
     print(f"h_distance shape = {h_distance.shape}")
-    return h_distance.unsqueeze(0)
+    color_mask = torch.ones_like(color_diff_sigmoid)
+    return color_mask * h_distance
 
 
 
