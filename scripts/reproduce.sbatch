@@ -2,7 +2,6 @@
 #SBATCH --job-name="Loop-GSLAM"
 #SBATCH --output=/home/stud/lxuh/storage/user/lxuh/output/logs/%A_%a.log  # please change accordingly
 #SBATCH --nodes=1
-#SBATCH --nodelist=node3
 #SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:1,VRAM:24G
 #SBATCH --mem=16G
